@@ -1,0 +1,21 @@
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        - id: service_route
+          uri: http://localhost:8080
+          predicates:
+            - Path=/prefix/api/v1/webflux/r2dbc
+          filters:
+            - StripPrefix=1
+            - RemoveRequestHeader=x-forwarded-port
+server:
+  port: 8090
+
+#eureka:
+#  instance:
+#    hostname: localhost
+#    prefer-ip-address: true
