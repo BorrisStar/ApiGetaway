@@ -6,12 +6,21 @@ spring:
           enabled: false
       routes:
         - id: service_route
-          uri: http://localhost:8080
+          uri: http://localhost:8070
           predicates:
             - Path=/prefix/api/v1/webflux/r2dbc
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=x-forwarded-port
+  main:
+    web-application-type: reactive
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:9000
+
 server:
   port: 8090
 
