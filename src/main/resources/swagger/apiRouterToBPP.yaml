@@ -1,0 +1,1398 @@
+swagger: '2.0'
+info:
+  description: |-
+    This is a draft version
+    Removed offer API
+    Updated meta data
+
+    Updated by : Manimaran Samuthirapandi
+    13-11-2019 14:30
+  version: "1.0.1"
+  title: "Router to BPP API's Documentation"
+  termsOfService: "http://swagger.io/terms/"
+  contact:
+    email: "msa@adorsys.de"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+
+host: "fargo:8080"
+basePath: "/prweb/PRRestService/DLSales/v1/"
+tags:
+  - name: "Decision"
+    description: "Calculate/find the partner score based on his financial information"
+  - name: "Document"
+    description: |-
+      API that generate documents based on the source input request
+      * Document type
+        * Contract-Document
+        * Order-Document
+        * Acceptance-Certificate
+        * Customer-Invoice
+        * Activation-Document
+  - name: "Data submission"
+    description: "Data submission"
+schemes:
+  - "http"
+  - "https"
+
+# To apply Basic authentication (Username, password) to the whole API
+
+# API's definition
+paths:
+  #
+  # Score/Decide offer API's details
+  #
+  /decision:
+    post:
+      summary: Get the Score/decide details of the requested partner
+      description: "Get the Score/decide details of the requested partner"
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: traceId
+          type: string
+          description: "Random generator id from Router which can be used to track the request"
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/genericRequest"
+          description: |-
+            The request will contain the following information
+            * externalOfferId (required) - request number from the customer (FOS), so they can track their request based on that.
+            * data (required) - Partner data
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/partnerScoreResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: getPartnerScore
+      security:
+        - BasicAuth: []
+    #/getDecision:
+    get:
+      summary: Get the Score/decide details of the requested partner
+      description: "Get the Score/decide details of the requested partner"
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: traceId
+          type: string
+          description: "Random generator id from Router which can be used to track the request"
+        - name: externalOfferId
+          in: header
+          required: true
+          type: string
+        - name: dlOfferId
+          in: header
+          required: true
+          type: string
+        - name: caseId
+          in: header
+          required: false
+          type: string
+        - name: chasisNo
+          in: header
+          required: false
+          type: string
+        - name: dmsFileId
+          in: header
+          required: false
+          type: string
+        - name: countryCode
+          in: header
+          required: true
+          type: string
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/partnerGetScoreResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: getPartnerGetScore
+      security:
+        - BasicAuth: []
+    delete:
+      summary: Delete the decision
+      description: "Delete the decision"
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: traceId
+          type: string
+          description: "Random generator id from Router which can be used to track the request"
+        - name: externalOfferId
+          in: header
+          required: true
+          type: string
+        - name: dlOfferId
+          in: header
+          required: true
+          type: string
+        - name: countryCode
+          in: header
+          required: true
+          type: string
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/cancelOfferResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: deleteDecision
+      security:
+        - BasicAuth: []
+  /decisionStatus:
+    get:
+      summary: Notification services used to check the decision is available or not
+      description: "Notification services used to check the decision is available or not"
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: traceId
+          type: string
+          description: "Random generator id from Router which can be used to track the request"
+        - name: externalOfferId
+          in: header
+          required: true
+          type: string
+        - name: dlOfferId
+          in: header
+          required: true
+          type: string
+        - name: countryCode
+          in: header
+          required: true
+          type: string
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/decisionStatusResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: partnerGetScoreStatus
+      security:
+        - BasicAuth: []
+  #
+  # Documents API's details
+  #
+  /document:
+    post:
+      tags:
+        - "Document"
+      summary: "Returns the generated document as per source input request"
+      description: |-
+        Create the document based on the documentType as mentioned below and payload data
+         * Document type
+            * Contract-Document
+            * Order-Document
+            * Acceptance-Certificate
+            * Customer-Invoice
+            * Activation-Document
+            * etc.
+      operationId: "generateDocument"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: header
+          name: traceId
+          type: string
+          description: "Random generator id from Router which can be used to track the request"
+        - in: "body"
+          name: "body"
+          required: false
+          schema:
+            $ref: "#/definitions/documentRequest"
+      responses:
+        200:
+          description: "Document generated send as pdf byte stream data"
+          schema:
+            $ref: '#/definitions/documentResponse'
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Request invalid/failed"
+          schema:
+            $ref: "#/definitions/Error"
+      security:
+        - BasicAuth: []
+  #
+  # Data submission
+  #
+  /dataSubmit:
+    post:
+      tags:
+        - "Data submission"
+      summary: "Submit the data with offer based on partner score and documents (refer: Document type) which created so far"
+      description: "Submit the data with offer based on partner score and documents (refer: Document type) which created so far"
+      operationId: "dataSubmit"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: false
+          schema:
+            $ref: "#/definitions/offerRequest"
+      responses:
+        200:
+          description: "Document generated send as attachment PDF"
+          schema:
+            $ref: '#/definitions/offerResponse'
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Request invalid/failed"
+          schema:
+            $ref: "#/definitions/Error"
+      security:
+        - BasicAuth: []
+securityDefinitions:
+  BasicAuth:
+    type: basic
+definitions:
+  Error:
+    type: object
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      errorCode:
+        type: string
+      errorMessage:
+        type: string
+    description: An object that holds standard error information.
+  metadata:
+    type: object
+    properties:
+      traceId:
+        type: string
+        description: "traceId used to find out the request details. traceId created with combination of partnerId+date and time, TBD"
+        example: 32746e4b-4324-48db-97c1-4859f9adcb2d-12112019-0300321132
+      requestReceivedDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+          The request received time as timestamp value - big integer
+      requestProcessedDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+          The request processed and response time as timestamp value - big integer
+  genericRequest:
+    type: object
+    description: Wrapper object to hold the request for a partnerScoreRequest data.
+    required:
+      - externalOfferId
+      - countryCode
+      - data
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      data:
+        $ref: '#/definitions/genericRequestData'
+  documentRequestData:
+    type: object
+    required:
+      - data
+    properties:
+      templateData:
+        $ref: '#/definitions/templateObject'
+      supplierInvoices:
+        $ref: '#/definitions/supplierInvoiceObjectArray'
+      customer:
+        $ref: '#/definitions/PersonData'
+      mainDeailer:
+        $ref: '#/definitions/PersonData'
+      PaymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+      provision:
+        $ref: '#/definitions/provisionArray'
+      serviceData:
+        $ref: '#/definitions/serviceDataArray'
+      contractData:
+        $ref: '#/definitions/contractDataObject'
+      assetData:
+        $ref: '#/definitions/assetDataArray'
+      guarantor:
+        $ref: '#/definitions/PersonData'
+      financingData:
+        $ref: '#/definitions/financingDataObject'
+      scoringDetails:
+        $ref: '#/definitions/scoringDetailsObject'
+  genericRequestData:
+    type: object
+    required:
+      - data
+    properties:
+      supplierInvoices:
+        $ref: '#/definitions/supplierInvoiceObjectArray'
+      customer:
+        $ref: '#/definitions/PersonData'
+      mainDeailer:
+        $ref: '#/definitions/PersonData'
+      PaymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+      provision:
+        $ref: '#/definitions/provisionArray'
+      serviceData:
+        $ref: '#/definitions/serviceDataArray'
+      contractData:
+        $ref: '#/definitions/contractDataObject'
+      assetData:
+        $ref: '#/definitions/assetDataArray'
+      guarantor:
+        $ref: '#/definitions/PersonData'
+      financingData:
+        $ref: '#/definitions/financingDataObject'
+      scoringDetails:
+        $ref: '#/definitions/scoringDetailsObject'
+  templateObject:
+    type: object
+    required:
+      - documentId
+      - documentName
+      - archiveFlag
+      - emailFlag
+      - printFlag
+      - pdfFlag
+    properties:
+      documentId:
+        type: string
+      documentName:
+        type: string
+        description: |-
+          Type of document
+            * Contract-Document
+            * Order-Document
+            * Acceptance-Certificate
+            * Customer-Invoice
+            * Activation-Document
+      archiveFlag:
+        type: string
+      emailFlag:
+        type: string
+      printFlag:
+        type: string
+      pdfFlag:
+        type: string
+  paymentPlanObject:
+    type: object
+    required:
+      - startMonth
+      - endMonth
+      - netInstallmentAmount
+      - numberofMonths
+    properties:
+      startMonth:
+        type: integer
+      endMonth:
+        type: integer
+      netInstallmentAmount:
+        type: number
+        description: |-
+          Data Format - Double
+          Difference between StartMonth and EndMonth in BPP and must be calculated
+      netInstallmentPercentage:
+        type: number
+        description: |-
+          Data Format - Double
+      numberofMonths:
+        type: integer
+        description: Required for Contract Creation Proces
+  scoringDetailsObject:
+    type: object
+    required:
+      - productLine
+      - insuranceType
+      - requestType
+      - businessSegment
+      - saleschannel
+      - proceduretype
+      - vpsLetterAddressee
+      - insuranceKind
+      - contractKind
+      - riskTeam
+      - contractTeam
+      - salesTeam
+      - gapRatio
+    properties:
+      scoreCardId:
+        type: integer
+      dlConnectStatus:
+        type: string
+      userId:
+        type: string
+      productLine:
+        type: string
+      insuranceType:
+        type: string
+        description:  |-
+          String aus ["KEINE", "KEINE-OHNE-HINWEIS", "GAP", "PKW", "NFZ", "MIT-VERSICHERUNG"]
+
+          From FOS
+            Must always deliver as "KEINE"
+          From Dl Connect
+            String aus ["KEINE", "KEINE-OHNE-HINWEIS", "GAP", "PKW", "NFZ", "MIT-VERSICHERUNG"]
+      requestType:
+        type: string
+        description:  |-
+          From FOS
+            For day 1 must always sent as ENTSCHEIDUNGSANFRAGE_OHNE_VERTRAG
+          From Dl Connect
+            String aus ["ENTSCHEIDUNGSANFRAGE-MIT-VERTRAG", "ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG", "TENDENZANFRAGE", "RISIKOKLASSIFIZIERUNG", "NACH-ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG", "RAHMEN-NEU", "RAHMEN-PROLONGATION", "RAHMEN-AUSSCHOEPFUNG", "RAHMEN-AUFSTOCKUNG", "RAHMEN-REDUZIERUNG", "GARANTENRAHMEN-NEU", "GARANTENRAHMEN-PROLONGATION", "GARANTENRAHMEN-AUFSTOCKUNG", "GARANTENRAHMEN-REDUZIERUNG",  "BESTAND-LN-WECHSEL", "BESTAND-SICHERHEITENFREIGABE", "BESTAND-STUNDUNGSANFRAGE", "BESTAND-SONSTIGE"]
+      businessSegment:
+        type: string
+        description:  |-
+          From FOS
+            must always sent as "GIN"
+
+          From DL Connect
+            String aus ["AFL", "DAL", "DIV", GIN", "GIT", "GFL", "GRE", "GSM"]
+      saleschannel:
+        type: string
+        description:  |-
+          From FOS
+            must always sent as "DLDIREKT"
+
+          From DL Connect
+            String aus ["KEINE-ANGABE", "BUSINESS", "DLDIREKT", "DIREKT", "E-BUSINESS", "KSC", "KEY-PARTNER", "PARTNER", "VERMITTLER"]
+      proceduretype:
+        type: string
+        description:  |-
+          From DL Connect
+            String aus ["EQUIP", "DRUCK-MEDIA", "NFZ", "IT", "HEF-AUTO", "HEF-BAUMASCHINEN", "HEF-CARAVAN", "FLEET"]
+      vpsLetterAddressee:
+        type: string
+        description:  |-
+          From FOS
+            must delivers as "KEINE-ANGABE"
+
+          From DL Connect
+            String aus ["KEINE-ANGABE", "KUNDE", "VERTRIEB"]
+      insuranceKind:
+        type: string
+        description:  |-
+          From FOS
+            must delivers as "KEINE"
+
+          From DL Connect
+            String aus ["KEINE", "KEINE-OHNE-HINWEIS", "GAP", "PKW", "NFZ", "MIT-VERSICHERUNG"]
+      contractKind:
+        type: string
+        description:  |-
+          From FOS
+            must delivers as "KEINE-ANGABE"
+
+          From DL Connect
+            String aus ["KEINE-ANGABE", "LEASING", "MIETKAUF", "MIETE-VERMTAUSCH", "RAHMEN-NEU", RAHMEN-ERHOEHUNG", RAHMEN-PROLO", "RAHMEN-KURZPROLO"]
+      riskTeam:
+        type: string
+        description:  |-
+          Rule will be provided for BPP
+
+          From FOS
+            Not required. Default value will be configured in BPP
+      contractTeam:
+        type: string
+        description:  |-
+          Rule will be provided for BPP
+
+          From FOS
+            Not required. Default value will be configured in BPP
+      salesTeam:
+        type: string
+        description:  |-
+          Rule will be provided for BPP
+
+          From FOS
+            Not required. Default value will be configured in BPP
+      gapRatio:
+        type: number
+        description:  |-
+          Data format - Docuble
+      salesAssistant:
+        type: string
+      username:
+        type: string
+      businessRelationshipSince:
+        type: string
+      paymentProblems:
+        type: string
+      offerValidTime:
+        type: string
+        description: |-
+          Data Format - Date
+  financingDataObject:
+    type: object
+    properties:
+      duration:
+        type: integer
+      acquistionValue:
+        type: number
+        description: |-
+          Data Format - Double
+      downPayment:
+        type: number
+        description: |-
+          Data Format - Double
+      subsidyAmount:
+        type: number
+        description: |-
+          Data Format - Double
+      residualValue:
+        type: number
+        description: |-
+          Data Format - Double
+      ballonRate:
+        type: number
+        description: |-
+          Data Format - Double
+      assetData:
+        $ref: '#/definitions/assetDataObject'
+  addressDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/addressDataObject'
+  addressDataObject:
+    type: object
+    required:
+      - street
+      - houseNr
+      - zipCode
+      - city
+      - countryCode
+    properties:
+      street:
+        type: string
+      houseNr:
+        type: string
+      zipCode:
+        type: string
+      city:
+        type: string
+      countryCode:
+        type: string
+      addressType:
+        type: string
+  assetDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/assetDataObject'
+  assetDataObject:
+    type: object
+    required:
+      - fahrgestellnummer
+      - chasisNumber
+    properties:
+      fahrgestellnummer:
+        type: string
+      chasisNumber:
+        type: string
+      licensePlateNumber:
+        type: string
+      ComponentName:
+        type: string
+      ComponentDescription:
+        type: string
+      FOSComponentID:
+        type: string
+  contractDataObject:
+    type: object
+    required:
+      - duration
+      - offerZins
+      - companyNumber
+      - procurementType
+      - dueDate
+      - installmentPattern
+      - paymentPattern
+      - installmentCycle
+      - totalDownpayment
+      - directDebit
+      - financeVATPercentage
+      - mkVATFlag
+      - bgn
+      - salesArea1Number
+      - salesArea1Percentage
+      - salesArea2Number
+      - salesArea2Percentage
+      - salesArea3Number
+      - salesArea3Percentage
+      - externalSysProductName
+      - elementarProduct
+      - masterProduct
+      - contractWay
+      - distributionChannel_Level1
+      - distributionChannel_Level2
+      - businessSegment_Level1
+      - businessSegment_Level2
+      - downpaymentPaidFlag
+      - usedObject
+      - offerSignedDate
+      - objectRiskClass
+      - zielmarkt
+      - objectType
+      - objectPackageDescription
+      - noOfAssets
+      - totalAcquistionValue
+      - offerDate
+      - ageInMonths
+      - usageType
+      - annualMileage
+      - usedBuyRate
+      - buyRateDate
+      - buyRateTableauVersion
+    properties:
+      externalSystemOfferId:
+        type: string
+      paymentCode:
+        type: string
+      duration:
+        type: integer
+      offerZins:
+        type: number
+        description: |-
+          Data Format - Double
+
+          Zins used by the FOS for the calculation of the Offer
+      companyNumber:
+        type: integer
+      ProcurementType:
+        type: string
+        description: |-
+          It is to define whether it Sale and Lease Back or Bestelleintritt
+
+          Must be sent as "BESTELLUNG" .
+
+          In case of Sale and Lease Back it needs to be sent as "SLB"
+      dueDate:
+        type: string
+        description: |-
+          Data Format - Date
+
+          Fälligkeitdatum für DL
+
+          Leasing Rechnung Fälligkeitsdatum
+
+          IF nutzung  then it should be first day of next month of Abhnamedatum
+          e.g Abhnamedatum = 10.10.2019
+             then please sent as 01.11.2019
+
+
+          If not nutzung then it should be first day of the same month of Abhnamedatum
+
+          e.g Abhnamedatum = 10.10.2019
+          then please sent as 01.10.2019
+      installmentPattern:
+        type: string
+        description: |-
+          String aus ["KEINE-ANGABE", "LINEAR", "SONDER" ,"SAISON", "DEGRESSIV", "TILGUNGSDARLEHEN"]
+          From FOS-
+          For Annuity please sent as "LINEAR"
+
+          For Others please send as "SAISON"
+
+          From DL Connect
+          String aus ["KEINE-ANGABE", "LINEAR", "SONDER" ,"SAISON", "DEGRESSIV", "TILGUNGSDARLEHEN"]
+      paymentPattern:
+        type: string
+        description: |-
+          The possible values as
+          LINEAR
+          NUTZUNGSENTSCHAEDINUNG
+          DEGRESSIV
+          SAISON
+          GEBROCHEN
+          PROGRESSIV
+
+          From FOS
+            In case of Nutzung please send as NUTZUNGSENTSCHAEDINUNG
+
+            For Annuity please sent as "LINEAR"
+
+            For Others please send as "SAISON"
+      installmentCycle:
+        type: string
+        description: |-
+          Mandatory attribute with possible values as
+          MONTHLY
+          QUARTERLY
+          HALFYEARLY
+          YEARLY
+
+          From DL Connect
+            String aus ["MONTHLY", "QUARTERLY"]
+      totalDownpayment:
+        type: number
+        description: |-
+          Data Format - Double
+
+          This is Anzahlung from Kunde.
+          If available please send the value. If not available then no value is sent
+
+      directDebit:
+        type: integer
+        description: |-
+          This field is to indicate whether the Monthly rental must be direct debited from Customer Bank account or not.
+
+          Value 0 = Direct Debit from Customer Account
+
+          Value 1  = Überweisung (Customer transfers monthly the rate )
+
+          From FOS
+            Must always sent as 0
+      financeVATPercentage:
+        type: number
+        description: |-
+          Data Format - Double
+
+          To provide the information as 19 (when 19%) , 20 ( when 20%) , 0 (when 0%) etc..
+
+          From FOS
+          Must sent as 19 in case of 19% VAT (0r) 0 in case of 0% VAT
+      mkVATFlag:
+        type: string
+        description: |-
+          For MK contracts , DL must needs to get additional information about handling of VAT for SMB / Bestelleintritt.
+
+          For SMB and customer is not vorsteuerabzugsberechtigt then expecting value "A"
+
+          For SMB and customer is not vorsteuerabzugsberechtigt then expecting value "O". So Vat for the Zins will be collected monthly from customer
+
+          For Bestelleintritt value expected is "C"
+          So the VAT for the complete Rate will be collected along with first installment
+
+          From FOS
+          As SCB handles Bestelleintritt Must always sent as "C"
+      bgn:
+        type: integer
+      salesArea1Number:
+        type: integer
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea1Percentage:
+        type: integer
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea2Number:
+        type: integer
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea2Percentage:
+        type: integer
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea3Number:
+        type: integer
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea3Percentage:
+        type: integer
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      externalSysProductName:
+        type: string
+        description: |-
+          Product name from FOS
+      elementarProduct:
+        type: string
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+
+          From FOS
+            Mapping will be done in BPP for the FOS Product to DL Product
+
+          From DL Connect
+            String aus ["KEINE-ANGABE", "V1", "V2", "V3", "MK", "KM", "CE", "CO", "KV", "K4", "LA", "LC", "LS", "LT", "LV", "PT", "ST", "TA", "TK", "TO", "T1", "T3", "VA", "AF 7", "CH", "K3", "K5", "LR", "V1-LGS", "V2-LGS", "V3-LGS", "AT", "AK", "V-", "VK", "VV," "IK (ORBI)" ]
+      masterProduct:
+        type: string
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      contractWay:
+        type: string
+        description: |-
+          This is Vertragsweg.To be defined in BPP
+      distributionChannel_Level1:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      distributionChannel_Level2:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      businessSegment_Level1:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      businessSegment_Level2:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      downpaymentPaidFlag:
+        type: string
+        description: |-
+          For the Vertrags system we have the field to indicate whether the downpayment must be direct debited from the customer account (or) not
+
+          From FOS
+            If downpayment is available then please send as "N".
+
+            IF not please send empty
+      usedObject:
+        type: string
+        description: |-
+          From FOS
+            If it is used object then set as "J",  IF it is a neu object then sent as "N"
+      offerSignedDate:
+        type: string
+        description: |-
+          Data format - Date
+          This is the Angebotsunterschritsdatum
+      objectRiskClass:
+        type: string
+        description: |-
+          In BPP Configured as NFZ-I
+
+          From DL Connect
+            String aus ["IT", "NFZ", "NFZ-I", "NFZ-II", NFZ-III", "COM", "DRUCK-I", "DRUCK-II", "DRUCK-III", "PKW", "§EQUIP-I", "EQUIP-II", "EQUIP-III", "KEINE-ANGABE" ]
+      zielmarkt:
+        type: string
+        description: |-
+          String aus ["PKW", "IT", "NFZ", "EQUIP", "ITK", "GARANTIEN"]
+
+          From FOS
+            Must always sent as NFZ
+
+          From DL Connect
+            String aus ["PKW", "IT", "NFZ", "EQUIP", "ITK", "GARANTIEN"]
+      objectType:
+        type: string
+        description: |-
+          From FOS
+            Must always sent as  "NUTZFAHRZEUGE"
+      objectPackageDescription:
+        type: string
+      noOfAssets:
+        type: integer
+        description: It is number of Fahrzeug/Assets in the offer
+      totalAcquistionValue:
+        type: number
+        description: |-
+          Data format - Double
+      offerDate:
+        type: string
+        description: |-
+          Data format - Date
+          Offer creation date
+      ageInMonths:
+        type: integer
+      usageType:
+        type: string
+        description: |-
+          This is werteverlauf
+
+          From FOS
+            Must always sent as NORMAL
+
+          From DL Connect
+            String aus ["NORMAL", "HOCH"]
+      annualMileage:
+        type: integer
+      usedBuyRate:
+        type: number
+        description: |-
+          Data format - Double
+      buyRateDate:
+        type: string
+        description: |-
+          Data format - Date
+      buyRateTableauVersion:
+        type: string
+      paymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+  serviceDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/serviceDataObject'
+  serviceDataObject:
+    type: object
+    required:
+      - externalSystemProductName
+      - masterProduct
+      - elementarProduct
+      - saleProcess
+      - extensionFlag
+      - serviceNetAmount
+      - paymentMode
+    properties:
+      externalSystemProductName:
+        type: string
+      masterProduct:
+        type: string
+        description: |-
+          Must be defaulted in BPP based on the Product name
+
+          Rule will be provided for BPP
+      elementarProduct:
+        type: string
+        description: |-
+          Must be defaulted in BPP based on the Product name
+
+          Rule will be provided for BPP
+      saleProcess:
+        type: string
+        description: |-
+          Value for this fields are
+
+          "D" for DirektAbschluss
+          "I" for IndirektAbschluss
+
+          Must always sent as "D"
+      extensionFlag:
+        type: string
+        description: |-
+          Must be defaulted in BPP based on the Product name
+
+          Rule will be provided for BPP
+      serviceNetAmount:
+        type: number
+        description: |-
+          Data Format - Double
+      paymentMode:
+        type: string
+        description: |-
+          Mandatory attribute with possible values as
+          MONTHLY
+          QUARTERLY
+          HALFYEARLY
+          YEARLY
+      paymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+  provisionArray:
+    type: array
+    items:
+      $ref: '#/definitions/provisionObject'
+  provisionObject:
+    type: object
+    description: The api request.
+    required:
+      - commisionType
+      - comissionNetAmount
+      - comissionVatPercentage
+    properties:
+      commisionType:
+        type: string
+        description: Value to be defined by DL for this field which needs to be sent by FOS
+      comissionNetAmount:
+        type: number
+        description: |-
+          Data Format - Double
+      comissionVatPercentage:
+        type: number
+        description: |-
+          Data Format - Double
+          It is the VAT % (0 % or 19% or 20 %  which needs to be sent by Source System)
+
+          BPP
+          If the value is 0% then please send in offer transfer as "NO".  Else sent as "YES"
+
+          For 19%  VAT please sent as 19 in this field
+          For 20% VAT please sent as 20
+          For 0% VAT please sent as 0
+      personData:
+        $ref: '#/definitions/PersonData'
+  PaymentPlanObjectArray:
+    type: array
+    items:
+      $ref: '#/definitions/paymentPlanObject'
+  supplierInvoiceObjectArray:
+    type: array
+    items:
+      $ref: '#/definitions/InvoiceDataObject'
+  InvoiceDataObject:
+    type: object
+    description: The api request.
+    required:
+      - invoiceNumber
+      - invoiceDatum
+      - invoiceNetAmount
+      - invoiceGrossAmount
+      - invoiceVatAmount
+    properties:
+      invoiceNumber:
+        type: string
+      invoiceDatum:
+        type: string
+        description: |-
+          Data Format - Date
+      invoiceNetAmount:
+        type: number
+        description: |-
+          Data Format - Double
+      invoiceGrossAmount:
+        type: number
+        description: |-
+          Data Format - Double
+      invoiceVatAmount:
+        type: number
+        description: |-
+          Data Format - Double
+      personData:
+        $ref: '#/definitions/PersonData'
+  bankDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/bankData'
+  bankData:
+    type: object
+    description: Bank data.
+    required:
+      - iban
+      - bic
+      - mandateCity
+      - mandateSignatureDatum
+      - bankCity
+      - accountHolderName
+    properties:
+      iban:
+        type: string
+      bic:
+        type: string
+      mandateCity:
+        type: string
+      mandateSignatureDatum:
+        type: string
+        description: |-
+          Data Format - Date
+      bankCity:
+        type: string
+      bankName:
+        type: string
+      bankAccountNr:
+        type: string
+      blz:
+        type: string
+      bankType:
+        type: string
+      accountHolderName:
+        type: string
+  PersonData:
+    type: object
+    description: customer data.
+    required:
+      - name1
+      - name2
+      - salutation
+      - formOfEnterprise
+      - crefonumber
+    properties:
+      name1:
+        type: string
+        description: |-
+          Customer name
+      name2:
+        type: string
+      salutation:
+        type: string
+        description: Value as "HERR", "FRAU", "FIRMA", "EHELEUTE", "KEINE-ANGABE"
+      dateOfBirth:
+        type: string
+        description: |-
+          Data Format - Date
+      maidenName:
+        type: string
+      title:
+        type: string
+      formOfEnterprise:
+        type: string
+        description: |-
+          This refer to the field "Rechtsform"
+
+          Please refer to Scoring Mandatory excel sheet with the information of  Column "T - Datenobjekt innerhalb DLC" to know what values to be sent from FOS
+
+          Value as "INLAENDISCHES-KREDITINSTITUT", "KOERPERSCHAFT-OEFFENTLICHEN-RECHTS", "PRIVATPERSON" ,
+          "EINZELFIRMA-EINGETR-KAUFMANN", "GEWERBEBETRIEB", "FREIBERUFLER", "OHG", "KG", "GMBH", "GMBH-CO-KG" , "AG-KGAA", "GBR-BGB-GESELLSCHAFT", "EINGETRAGENER-VEREIN", "LIMITED", "GENOSSENSCHAFT".  "LANDWIRT-MIT-HOF", "LANDMASCHINEN-LOHNUNTERNEHMER"
+      partnerNumber:
+        type: integer
+        description: |-
+          Dummy Partner number as it is sent from GAA today will be configured in BPP
+      telephone:
+        type: string
+      telefax:
+        type: string
+      homepage:
+        type: string
+      email:
+        type: string
+      creditworthiness:
+        type: number
+        description: |-
+          Data Format - Double
+      crefonumber:
+        type: string
+        description: maximum length 14
+      addressData:
+        $ref: '#/definitions/addressDataArray'
+      bankData:
+        $ref: '#/definitions/bankDataArray'
+  partnerScoreResponse:
+    type: object
+    description: Wrapper object to hold the value of partnerScoreResponse data.
+    required:
+      - externalOfferId
+      - offerId
+      - caseId
+      - chasisNo
+      - dmsFileId
+      - data
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      riskdecision:
+        type: string
+      decisionValidTime:
+        type: integer
+      scoreObligation:
+        type: object
+        properties:
+          obligaton:
+            type: string
+  partnerGetScoreRequest:
+    type: object
+    description: Wrapper object to hold the value of partnerGetScoreRequest data.
+    required:
+      - externalOfferId
+      - offerId
+      - caseId
+      - chasisNo
+      - dmsFileId
+      - scoringId
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      dlOfferId:
+        type: string
+      scoringId:
+        type: string
+      caseId:
+        type: string
+      chasisNo:
+        type: string
+  partnerGetScoreResponse:
+    type: object
+    description: Wrapper object to hold the value of partnerScoreResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - data
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      caseId:
+        type: string
+      chasisNo:
+        type: string
+      dmsFileId:
+        type: string
+      decisionStatus:
+        type: string
+      scoreObligations:
+        type: array
+        items:
+          type: object
+          properties:
+            text:
+              type: string
+  documentRequest:
+    type: "object"
+    required:
+      - externalOfferId
+      - dlOfferId
+      - documentType
+      - data
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      dlOfferId:
+        type: string
+      data:
+        $ref: "#/definitions/documentRequestData"
+  documentResponse:
+    type: object
+    description: Wrapper object to hold the value of documentResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - status
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      documentId:
+        type: string
+      pdfByteStream:
+        type: string
+  offerRequest:
+    type: "object"
+    required:
+      - externalOfferId
+      - dlOfferId
+      - data
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      dlOfferId:
+        type: string
+      data:
+        $ref: "#/definitions/genericRequestData"
+  offerResponse:
+    type: object
+    description: Wrapper object to hold the value of offerResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - status
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      status:
+        type: string
+      addtionalInfo:
+        type: object
+  cancelOfferRequest:
+    type: "object"
+    required:
+      - externalOfferId
+      - dlOfferId
+      - scoringId
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      dlOfferId:
+        type: string
+      scoringId:
+        type: string
+  cancelOfferResponse:
+    type: object
+    description: Wrapper object to hold the value of cancelOfferResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - status
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      status:
+        type: string
+      addtionalInfo:
+        type: object
+  decisionStatusResponse:
+    type: object
+    description: Wrapper object to hold the value of partnerScoreResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - caseId
+      - chasisNo
+      - dmsFileId
+      - data
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      status:
+        type: string

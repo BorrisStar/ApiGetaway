@@ -21,6 +21,7 @@ public class ResourceServerConfig {
                 .authorizeExchange(exchanges ->
                         exchanges
                                 .pathMatchers("/**").permitAll()
+//                                .pathMatchers("/api/v1/webflux/r2dbc/**").hasAuthority("SCOPE_message:read")
                                 .anyExchange().authenticated()
                 )
                 .oauth2ResourceServer(oauth2ResourceServer ->

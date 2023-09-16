@@ -1,0 +1,5409 @@
+swagger: '2.0'
+info:
+  description: |-
+    The DL Offer API's for Schmitz Cargobull Finance Channel
+    Updated by : A060754
+    15-11-2021 20:18
+
+    - added the contractSearch request with pageNo and in response totalPages
+    - Changed termination type from string to number value
+    - <b>Servers</b>
+      - <b>SIT env</b>: http://api-sit.deutsche-leasing.com
+          - SIT environment available with HTTP and HTTPS
+      - <b>UAT env</b>: http://api-uat.deutsche-leasing.com
+          - UAT environment available with HTTP and HTTPS
+      - <b>PROD env</b>: http://api.deutsche-leasing.com
+          - PROD environment available with HTTPS
+  version: '@project.version@'
+  title: "DL Offer API"
+  contact:
+    email: "Manimaran.Samuthirapandi.extern@deutsche-leasing.com"
+basePath: "/"
+tags:
+  - name: "oAuth token"
+    description: "Authentication service - creation of oAuth token"
+  - name: "Partner"
+    description: "Search & identify the Partner with Crefo search"
+  - name: "Decision"
+    description: "Calculate/find the partner score based on his financial information"
+  - name: "Document"
+    description: |-
+      API that generate documents based on the source input request
+      * Document type
+        * Contract-Document
+        * Order-Document
+        * Acceptance-Certificate
+        * Customer-Invoice
+        * Activation-Document
+  - name: "Data submission"
+    description: "Data submission"
+  - name: "Split Offer"
+    description: "Split Offer"
+  - name: "Portfolio Service"
+    description: "Portfolio Service request APIs"
+  - name: "Service Request"
+    description: "The service request APIs"
+  - name: "Notification services"
+    description: |-
+      Notification services are used, once status available then notification send to FOS
+  - name: "vent.io api Request"
+    description: "vent.io apis"
+schemes:
+  - "http"
+  - "https"
+
+# To apply oAuth authentication to the whole API
+
+# API's definition
+paths:
+  #
+  # oAuth token generation
+  #
+  /oauth/token:
+    post:
+      summary: Authentication service - creation of oAuth token
+      description: |-
+        Authentication service - creation of oAuth token. The OAuth 2.0 concept is described in a separate document or can be found online.
+        <br/>
+        <b>oAuth request:</b>
+        * <b>Create new token</b>
+          - Required parameters
+            - username
+              - Enduser username
+            - password
+              - Enduser password
+            - grant_type
+              - "grant_type" variable which intimate the oAuth to generate the token with refersh token
+        * <b>Renew/re-generate token with refresh token</b>
+          - Required parameters
+            - username
+              - Enduser username
+            - password
+              - Enduser password
+            - refresh_token
+              - refresh_token value should be "token" which is generated in previous steps,  refresh_token - used to expiry the input token and generate the new token on behalf.
+      tags:
+        - "oAuth token"
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: formData
+          name: username
+          type: string
+          description: "Enduser username"
+        - in: formData
+          name: password
+          type: string
+          description: "Enduser password"
+        - in: formData
+          name: grant_type
+          type: string
+          description: "'grant_type' variable which intimate the oAuth to generate the token with refersh token"
+        - in: formData
+          name: refresh_token
+          type: string
+          description: "'refresh_token' value should be 'token' which is generated in previous steps,  refresh_token - used to expiry the input token and generate the new token on behalf."
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/oAuthResponse"
+        401:
+          description: 401 Unauthorized
+          schema:
+            $ref: "#/definitions/unAuthorize"
+      operationId: getOauthToken
+      security:
+        - BasicAuth: []
+
+  #
+  # Partner API's details
+  #
+  /api/v1/partner:
+    post:
+      summary: Return the partner/partnerList as per the source of input
+      description: |-
+        <b>Search function</b>
+          - Input
+            - Source of input in body
+          - Search result
+            - List of company details with unique identifier of customer (e.g. for Germany CREFO ID)"
+      tags:
+        - "Partner"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/partnerRequest"
+          description: |-
+            The request will contain the following information about the company/customer
+            * companyName
+            * crefoId
+            * countryCode (required)
+            * address
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/partnerResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: getPartner
+      security:
+        - ApiKeyAuth: []
+  /api/v1/creditAgencyReport:
+    get:
+      summary: Returns a report by the credit bureau report with regards to the country code
+      description: ""
+      tags:
+        - "Partner"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: crefoId
+          in: header
+          required: true
+          type: string
+          description: "Unique identifier of customer/company (e.g. for Germany CREFO ID)"
+        - name: CountryCode
+          in: header
+          required: true
+          type: string
+          description: "Standard two digit country code (e.g. DE, FR)"
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/creditAgencyReportResponse"
+      operationId: getCreditAgencyReport
+      security:
+        - ApiKeyAuth: []
+  #
+  # Score/Decide offer API's details
+  #
+  /api/v1/decision:
+    post:
+      summary: Submit an offer for decision
+      description: "This endpoint will accept an existing offer (offerID) and start the DL internal decision process. After the decision result is available, DL will call the provided notification service of the caller. The decision can lead to a manual decision process."
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/genericRequest"
+          description: |-
+            The request will contain the following information
+            * externalOfferId (required) - request number from the customer (FOS), so they can track their request based on that
+            * countryCode (required) - country for the customer
+            * data (required) - Partner data
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/partnerScoreResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: postPartnerScore
+      security:
+        - ApiKeyAuth: []
+    #/getDecision:
+    get:
+      summary: Get the decision details for an existing offer decision request
+      description: "Get the decision details for an existing offer"
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: externalOfferId
+          in: header
+          required: true
+          type: string
+          description: "Value generated in FOS and maintained for complete workflow"
+        - name: dlOfferId
+          in: header
+          required: true
+          type: string
+          description: "Value generated in BPP and maintained for complete workflow"
+        - name: countryCode
+          in: header
+          required: true
+          type: string
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/partnerGetScoreResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: getPartnerGetScore
+      security:
+        - ApiKeyAuth: []
+    put:
+      summary: Update an offer for decision
+      description: "This endpoint will accept an existing offer (offerID) and start the DL internal decision process. After the decision result is available, DL will call the provided notification service of the caller. The decision can lead to a manual decision process."
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/decisionPutRequest"
+          description: |-
+            The request will contain the following information
+            * externalOfferId (required) - request number from the customer (FOS), so they can track their request based on that
+            * countryCode (required) - country for the customer
+            * data (required) - Partner data
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/partnerScoreResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: putPartnerScore
+      security:
+        - ApiKeyAuth: []
+    delete:
+      summary: Cancel the decision of an existing offer
+      description: "Cancel the decision for an existing offer, so that the total engagement of a customer will be freed up. Cancellation will reduce the total engagement by the amount of the current offer amount."
+      tags:
+        - "Decision"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: externalOfferId
+          in: header
+          required: true
+          type: string
+          description: "Value generated by FOS can be identified and used to cancel the request"
+        - name: dlOfferId
+          in: header
+          required: true
+          type: string
+          description: "Value generated by BPP can be identified and used to cancel the request"
+        - name: countryCode
+          in: header
+          required: true
+          type: string
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/cancelOfferResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: deleteDecision
+      security:
+        - ApiKeyAuth: []
+
+  #
+  # split offer API
+  #
+  /api/v1/offer/suboffer:
+    post:
+      summary: Submit an offer for decision
+      description: "This endpoint will accept an existing offer (offerID) and start the spliting process. We will result with a list of subOffer."
+      tags:
+        - "Split Offer"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/offerRequest"
+          description: |-
+
+            * data (required) - Offer data
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/subOfferResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: splitOffer
+      security:
+        - ApiKeyAuth: []
+
+  #
+  # Documents API's details
+  #
+  /api/v1/document:
+    post:
+      tags:
+        - "Document"
+      summary: "Returns the generated document as per source input request"
+      description: |-
+        Create the document based on the documentType as mentioned below and payload data
+            * Document type
+            * Contract-Document
+            * Order-Document
+            * Acceptance-Certificate
+            * Customer-Invoice
+            * Activation-Document
+            * etc.
+      operationId: "generateDocument"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: false
+          schema:
+            $ref: "#/definitions/documentRequest"
+      responses:
+        200:
+          description: "Document generated send as pdf byte stream data"
+          schema:
+            $ref: '#/definitions/documentResponse'
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Request invalid/failed"
+          schema:
+            $ref: "#/definitions/Error"
+      security:
+        - ApiKeyAuth: []
+  #
+  # Data submission
+  #
+  /api/v1/dataSubmit:
+    post:
+      tags:
+        - "Data submission"
+      summary: "Submit the complete data set that was collected during the offer phase."
+      description: "This service will ensure that the offer system and the back office systems are in sync. This is the final hand in of any data and can not be changed afterwards. This call will be lead to a contract activation process. Once the DL activation process has started calling this method will return an error. Also after calling this method no further documents can be generated."
+      operationId: "dataSubmit"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: false
+          schema:
+            $ref: "#/definitions/offerRequest"
+      responses:
+        200:
+          description: "Document generated send as attachment PDF"
+          schema:
+            $ref: '#/definitions/offerResponse'
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        500:
+          description: "Request invalid/failed"
+          schema:
+            $ref: "#/definitions/Error"
+      security:
+        - ApiKeyAuth: []
+  #
+  # Service request
+  #
+  /api/v1/serviceRequest:
+    post:
+      tags:
+        - "Portfolio Service"
+      summary: "Creates a Portfolio service request for a customer"
+      description: |-
+        The SCB Front Office offers a bundle of various requests for customers. For some business cases it does not make sense to create a dedicated endpoint, but to provide a generic request for service. As part of a MVP, the generic request can be reused to fulfill all business cases, until dedicated endpoints are provided for the business cases.
+        There are 6 business cases planned for a durable usage of the service
+          [#01] GENERAL REQUEST
+          [#02] PAYMENT REQUESTS
+          [#03] BANK ACCOUNT CHANGE
+          [#04] LEGITIMATION UPDATE
+          [#05] NAME CHANGE
+          [#06] ADDRESS CHANGE
+          [#07] SECURITY CERTIFICATE SUBMISSION
+          [#08] LEGAL FORM OR LESSEE CHANGE CHECK
+          [#09] SERVICE COMPONENTS CHANGE
+          [#10] LEGAL FORM OR LESSEE CHANGE
+          [#11] VALUE OF TERMINATION REQUEST
+          [#12] CUSTOMER PURCHASE OFFER REQUEST
+          [#13] THIRD PARTY PURCHASE OFFER REQUEST
+          [#14] OUTSOURCING ZLB2 SUBMISSION
+          [#15] THIRD PARTY PURCHASE PROCESSING
+          [#16] CUSTOMER PURCHASE PROCESSING
+          [#17] CTS PURCHASE PROCESSING
+          [#18] CUSTOMER INVOICE PROCESSING
+          [#19] CTS RETURN OF OBJECT
+          [#20] CANCELLATION CONFIRMATION
+          [#21] GAP COVER EXECUTION
+          [#22] THEFT TOTAL DAMAGE REPORT
+          [#23] DAMAGE REPORT
+          [#24] SHORT TERM EXTENSION
+        <b>Consume and produce</b>
+          x.customercontactmanagement.v1+json
+      operationId: "serviceRequest"
+      consumes:
+        - "multipart/form-data"
+      produces:
+        - "application/json"
+      parameters:
+        - name: contractIdentifier
+          in: header
+          type: string
+          description: "contractIdentifier value"
+        - in: formData
+          name: data
+          type: string
+          description: |-
+            json string of input
+            example:
+              {"inquirer":{"name":"xxxxx","id":"xxxxx","email":"xxxxx@mail.com"},"partnerNumber":"xxxxx","serviceTopic":"GENERAL REQUEST","companyNumber":"301","serviceInput":"xxxxx","contractNumber":"xxxxx","offerId":"xxxxx", "baseOfferId": "xxxxx","countryCode":"DE", "additionalContractNumbers":[xxxxx,xxxxx,xxxxx],"chargeFee":0}
+        - in: formData
+          name: documents
+          type: file
+          description: The file to upload.
+      responses:
+        200:
+          description: "Request was handled correctly"
+          schema:
+            $ref: '#/definitions/ServiceRequestOkResponse'
+        400:
+          description: "Request malformed"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        403:
+          description: "Not permitted"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        404:
+          description: "Requested resource not found"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        422:
+          description: "Unprocessable Entity"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        500:
+          description: "Request invalid/failed or Internal server error"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+      security:
+        - ApiKeyAuth: []
+  # Service request
+  #
+  /api/v1/serviceRequest/document:
+    post:
+      tags:
+        - "Portfolio Service"
+      summary: "Creates a Portfolio service request for a customer"
+      description: |-
+        The SCB Front Office offers a bundle of various requests for customers. For some business cases it does not make sense to create a dedicated endpoint, but to provide a generic request for service. As part of a MVP, the generic request can be reused to fulfill all business cases, until dedicated endpoints are provided for the business cases.
+        There are 6 business cases planned for a durable usage of the service
+          [#01] GENERAL REQUEST
+          [#02] PAYMENT REQUESTS
+          [#03] BANK ACCOUNT CHANGE
+          [#04] LEGITIMATION UPDATE
+          [#05] NAME CHANGE
+          [#06] ADDRESS CHANGE
+          [#07] SECURITY CERTIFICATE SUBMISSION
+          [#08] LEGAL FORM OR LESSEE CHANGE CHECK
+          [#09] SERVICE COMPONENTS CHANGE
+          [#10] LEGAL FORM OR LESSEE CHANGE
+          [#11] VALUE OF TERMINATION REQUEST
+          [#12] CUSTOMER PURCHASE OFFER REQUEST
+          [#13] THIRD PARTY PURCHASE OFFER REQUEST
+          [#14] OUTSOURCING ZLB2 SUBMISSION
+          [#15] THIRD PARTY PURCHASE PROCESSING
+          [#16] CUSTOMER PURCHASE PROCESSING
+          [#17] CTS PURCHASE PROCESSING
+          [#18] CUSTOMER INVOICE PROCESSING
+          [#19] CTS RETURN OF OBJECT
+          [#20] CANCELLATION CONFIRMATION
+          [#21] GAP COVER EXECUTION
+          [#22] THEFT TOTAL DAMAGE REPORT
+          [#23] DAMAGE REPORT
+          [#24] SHORT TERM EXTENSION
+        <b>Consume and produce</b>
+          x.customercontactmanagement.v1+json
+      operationId: "serviceRequestDocument"
+      consumes:
+        - "multipart/form-data"
+      produces:
+        - "application/json"
+      parameters:
+        - in: formData
+          name: partnerNumber
+          type: string
+          description: |-
+        - in: formData
+          name: companyNumber
+          type: string
+        - in: formData
+          name: offerId
+          type: string
+          minLength: 0
+          maxLength: 20
+          description: |-
+        - in: formData
+          name: channel
+          type: string
+          minLength: 0
+          maxLength: 50
+        - in: formData
+          name: system
+          type: string
+          minLength: 0
+          maxLength: 20
+          description: |-
+            - FOS
+            - IAS
+            - LEO
+        - in: formData
+          name: offerProcessCompleted
+          type: string
+          description: |-
+            - Yes
+            - No
+        - in: formData
+          name: countryCode
+          type: string
+          description: |-
+        - in: formData
+          name: inquirer
+          type: string
+          description: |-
+            json string of input
+            example:
+              {"name":"xxxxx","id":"xxxxx","email":"xxxxx@mail.com"}
+        - in: formData
+          name: document
+          type: file
+          description: The file to upload.
+      responses:
+        200:
+          description: "Request was handled correctly"
+          schema:
+            $ref: '#/definitions/ServiceRequestOkResponse'
+        400:
+          description: "Request malformed"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        401:
+          description: "Unauthorized"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        403:
+          description: "Not permitted"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        404:
+          description: "Requested resource not found"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        422:
+          description: "Unprocessable Entity"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        500:
+          description: "Request invalid/failed or Internal server error"
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+      security:
+        - ApiKeyAuth: []
+
+  #
+  # Service Request Customer Invoice
+  #
+  /api/v1/serviceRequest/cases/customerInvoice:
+    post:
+      tags:
+        - "Portfolio Service"
+      consumes:
+        - "multipart/form-data"
+      produces:
+        - "application/json"
+      parameters:
+        - in: formData
+          name: countryCode
+          type: string
+          required: true
+        - in: formData
+          name: contractNumber
+          type: string
+          minLength: 1
+          maxLength: 10
+          required: true
+        - in: formData
+          name: partnerNumber
+          type: string
+          minLength: 1
+          maxLength: 10
+          required: true
+        - in: formData
+          name: companyNumber
+          type: string
+          minLength: 1
+          maxLength: 4
+          required: true
+        - in: formData
+          name: offerId
+          type: string
+          minLength: 0
+          maxLength: 20
+        - in: formData
+          name: sparkasseNumber
+          type: number
+          minimum: 1
+          maximum: 9999999999
+        - in: formData
+          name: baseOfferId
+          type: string
+          minLength: 0
+          maxLength: 20
+        - in: formData
+          name: invoiceTopic
+          type: string
+          required: true
+          enum:
+            - Earlyout
+            - MindererlÃ¶s Beendigung
+            - RÃ¼ge nach ObjektrÃ¼ckgabe
+            - Request for individual lists
+            - GebhÃ¼r
+            - Gutschrift
+        - in: formData
+          name: additionalInformation
+          type: string
+          minLength: 1
+          maxLength: 2100
+        - in: formData
+          name: invoiceNetAmount
+          type: number
+          description: double value
+        - in: formData
+          name: chargeFee
+          type: number
+          description: double value inquirer
+        - in: formData
+          name: inquirer
+          type: string
+          required: true
+          description: |-
+            {"name":"name","id":"id-value","email":"test@test.com"}
+        - in: formData
+          name: documents
+          type: file
+          description: The file to upload. json as file. See AddressChangeRequest schema definition
+      responses:
+        "200":
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/CustomerInvoiceServiceResponse"
+        "400":
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: serviceRequestCustomerInvoice
+      summary: Creates a  Invoice request for a customer.
+      description: This end point is to indiate the Invoice payment request to customer
+      security:
+        - ApiKeyAuth: []
+
+  #
+  # vehicleChange request
+  #
+  /api/v1/vehicleChange:
+    post:
+      tags:
+        - "Service Request"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/VehicleChangeRequest"
+          description: The request will trigger an end of lease change request
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/VehicleChangeResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        401:
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: vehicleChange
+      summary: Creates a service request for changing end of lease details.
+      description: >-
+        Updates the partner data for a customer. The possible use case:
+          - UPDATE (POST)
+         The customer will be identified by contract, partnerNumber, companyNumber.
+      security:
+        - ApiKeyAuth: []
+    #
+    # Sale offer request
+    #
+  /api/v1/assetinventory/cases/endOfLeaseDocuments:
+    post:
+      produces:
+        - application/x.contractmanagement.v1+json
+      consumes:
+        - application/x.contractmanagement.v1+json
+      tags:
+        - "Service Request"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/SaleOfferRequest"
+          description: The request will trigger an creation of sale offer document
+      responses:
+        "200":
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/SaleOfferResponse"
+        "400":
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+        "502":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: generateSaleOfferDocument
+      summary: Creates a sale offer document .
+      description: >-
+        Requests the Sale Offer Document. The possible use case:
+          - Sale Offer Document (POST)
+         The customer will be identified by contract, partnerNumber, companyNumber.
+      security:
+        - ApiKeyAuth: []
+  #
+  # Value of termination request
+  #
+  /api/v1/contractmanagement/cases/valueOfTerminationRequest:
+    post:
+      tags:
+        - "Service Request"
+      produces:
+        - application/x.contractmanagement.v1+json
+      consumes:
+        - application/x.contractmanagement.v1+json
+      summary: Creates a service request for value of termination.
+      operationId: endOfLeaseChange
+      description: >-
+        Requests the value of termination for a contract. The possible use case:
+          - Value of termination (POST)
+         The customer will be identified by contract, partnerNumber, companyNumber.
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/ValueOfTerminationRequest"
+          description: The request will trigger an end of lease change request
+      responses:
+        "200":
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/ValueOfTerminationResponse"
+        "400":
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/ValueOfTerminationErrorResponse"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ValueOfTerminationErrorResponse"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/ValueOfTerminationErrorResponse"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/ValueOfTerminationErrorResponse"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/ValueOfTerminationErrorResponse"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/ValueOfTerminationErrorResponse"
+  #
+  # Payment Stop BPPW-9
+  #
+  /api/v1/serviceRequest/cases/paymentStop:
+    post:
+      tags:
+        - "Service Request"
+      produces:
+        - application/json
+      consumes:
+        - application/json
+      operationId: paymentStop
+      summary: Creates a service request for stopping a payment.
+      description: >-
+        Stops payment for a contract. The possible use case:
+          - Stop payment (POST)
+        The customer will be identified by contract, partnerNumber, companyNumber.
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/PaymentStopRequest"
+            description: The request will trigger an end of lease change request
+      responses:
+        "200":
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/PaymentStopResponse"
+        "400":
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+        "502":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+  #
+  # BPPW-92: ContractSearch
+  #
+  /api/v1/contractmanagement/cases/contractSearch:
+    post:
+      tags:
+        - "Portfolio Service"
+      operationId: contractSearch
+      summary: Performs the Contract search based on Search Parameter .
+      description: Performs the Contract search based on Search Parameter .
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/ContractSearchParameters"
+          description: The request will trigger the search of Contracts based on the requested parameters
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/ContractSearchResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        401:
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        403:
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        422:
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500:
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+
+  #
+  # Bank Account Change request
+  #
+  /api/v1/serviceRequest/cases/bankAccountChange:
+    post:
+      tags:
+        - "Portfolio Service"
+      consumes:
+        - "multipart/form-data"
+      produces:
+        - "application/json"
+      parameters:
+        - in: formData
+          name: data
+          type: string
+          description: |-
+            json string of input
+            example:
+              {"contractNumber": "string","countryCode":"string","additionalContractNumbers": ["string"],"partnerNumber": "string","string","serviceInput","companyNumber": "string","offerId": "string","baseOfferId": "string","chargeFee": 0,"inquirer": {"id": "string","name": "string","salutation": "string","title": "string","telephoneNr": "string","email": "string"},"bankAccount": {"iban": "string","sepaMandate": {"signatureDate": "string","signatureCity": "string"},"differentAccountHolder": true,"accountHolder": {"crefoNr": "string","firstName": "string","lastName": "string","legalForm": "string","titel": "string","salutation": "string","category": "string","additionalInfo": {"tradeRegisterNr": "string","tradeRegisterCity": "string", "salesTaxNr": "string","taxNr": "string"},"communicationData": [{"faxNr": "string","telephoneNr": "string","mobileNr": "string","emailId": "string"}],"address": {"street": "string","streetNo": "string","zipCode": "string","city": "string","countryCode": "string"} },"applicableForAllContracts": true,"validFrom": "string"},"documents": ["string"]}
+        - in: formData
+          name: documents
+          type: file
+          description: The file to upload.
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/BankAccountChangeResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        401:
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+      operationId: bankAccountChange
+      summary: Creates a service request for changing the bank account details.
+      description: |-
+        Updates the partner data for a customer. The possible use case:
+        UPDATE (POST)
+         The customer can able to change/update the bank account details.
+      security:
+        - ApiKeyAuth: []
+
+  #
+  # Address Change request
+  #
+  /api/v1/serviceRequest/cases/addressChange:
+    post:
+      tags:
+        - "Portfolio Service"
+      consumes:
+        - "multipart/form-data"
+      produces:
+        - "application/json"
+      parameters:
+        - in: formData
+          name: data
+          type: string
+          description: |-
+            json string of input. See AddressChangeRequest schema definition
+            example: { "contractNumber": "string", "countryCode": "string", "additionalContractNumbers": [ "string" ], "partnerNumber": "string", "companyNumber": "string", "offerId": "string", "baseOfferId": "string", "serviceInput": "string", "chargeFee": 0, "inquirer": { "id": "string", "name": "string", "salutation": "string", "title": "string", "telephoneNr": "string", "email": "string" }, "addressOld": { "street": "string", "streetNo": "string", "zipCode": "string", "city": "string", "countryCode": "string", "validFrom": "string" }, "addressNew": { "street": "string", "streetNo": "string", "zipCode": "string", "city": "string", "countryCode": "string", "validFrom": "string" }, "documents": [ "string" ] }
+        - in: formData
+          name: documents
+          type: file
+          description: The file to upload. json as file. See AddressChangeRequest schema definition
+      responses:
+        "200":
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/AddressChangeResponse"
+        "400":
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/ServiceRequestError"
+      operationId: addressChange
+      summary: Creates a service request for changing the address details.
+      description: |-
+        Updates the partner data for a customer. The possible use case:
+        UPDATE (POST)
+         The customer can able to change/update the address details.
+      security:
+        - ApiKeyAuth: []
+  #
+  # Decision Status Notification API's details
+  #
+  /api/v1/decisionStatus:
+    post:
+      summary: |-
+        Update the status of decision status
+          Business flow
+           BPP --> Router --> FOS
+      description: |-
+        In manual process of decision, once the decision status available from DL connect then BPP has to update the decision status via this Router API to FOS
+        Business flow
+           BPP --> Router --> FOS
+      tags:
+        - "Notification services"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: traceId
+          in: header
+          description: "Unique data string provided by Router which is used for audit."
+          type: string
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/notifyRequest"
+      responses:
+        200:
+          description: Request handled successfully
+          schema:
+            $ref: "#/definitions/notifyResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/notifyResponseErr"
+        500:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/notifyResponseErr"
+      operationId: postDecisionStatus
+  #
+  # Update Contract Status Notification API's details
+  #
+  /api/v1/updateContractStatus:
+    post:
+      summary: |-
+        Update the status of contract - Contract status notification
+          Business flow
+           BPP --> Router --> FOS
+      description: |-
+        Update the status of contract, once it is available then BPP has to update the contract status via this Router API to FOS
+        Business flow
+           BPP --> Router --> FOS
+      tags:
+        - "Notification services"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: traceId
+          in: header
+          description: "Unique data string provided by Router which is used for audit."
+          type: string
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/UpdateContract"
+      responses:
+        200:
+          description: Request handled successfully
+          schema:
+            $ref: "#/definitions/UpdateContractStatusResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/notifyResponseErr"
+        512:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/notifyResponseErr"
+      operationId: postContractStatus
+    #
+  # Update Contract Status Notification API's details
+  #
+  /api/v1/updatePortfolioStatus:
+    post:
+      summary: |-
+        Update the portfolio status
+          Business flow
+           BPP --> Router --> FOS
+      description: |-
+        Update the portfolio status
+        Business flow
+           BPP --> Router --> FOS
+      tags:
+        - "Notification services"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: traceId
+          in: header
+          description: "Unique data string provided by Router which is used for audit."
+          type: string
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/updatePortfolio"
+      responses:
+        200:
+          description: Request handled successfully
+          schema:
+            $ref: "#/definitions/updatePortfolioStatusResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/notifyResponseErr"
+        512:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/notifyResponseErr"
+      operationId: postPortfolioStatus
+    # API for getting classifying a document and retrieving the most important information
+    # The information is stored in the keywords parameter of the DocResults attribute of the result
+  /api/v1/documents/ocr:
+    post:
+      tags:
+        - "vent.io api Request"
+      operationId: "document_ocr"
+      consumes:
+        - "multipart/form-data"
+      produces:
+        - "application/json"
+      parameters:
+        - in: formData
+          name: countryCode
+          required: true
+          type: string
+          description: |-
+        - in: formData
+          name: file
+          required: true
+          type: file
+          description: The file to upload.
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/OCRRawResult"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        401:
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        413:
+          description: Payload Too Large
+          schema:
+            $ref: "#/definitions/Error"
+        415:
+          description: Unsupported Media Type
+          schema:
+            $ref: "#/definitions/Error"
+      description: >-
+        API for getting the raw text out of a document by applying OCR (more for test purposes).
+      security:
+        - ApiKeyAuth: []
+  /api/v1/documents/classify:
+    post:
+      tags:
+        - "vent.io api Request"
+      operationId: "document_classify"
+      consumes:
+        - "multipart/form-data"
+      produces:
+        - "application/json"
+      parameters:
+        - in: formData
+          name: countryCode
+          required: true
+          type: string
+          description: |-
+        - in: formData
+          name: keywords
+          type: array
+          items:
+            type: string
+          description: |-
+        - in: formData
+          name: request_id
+          required: true
+          type: string
+          description: |-
+        - in: formData
+          name: file
+          required: true
+          type: file
+          description: The file to upload.
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/ClassificationResult"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        401:
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        413:
+          description: Payload Too Large
+          schema:
+            $ref: "#/definitions/Error"
+        415:
+          description: Unsupported Media Type
+          schema:
+            $ref: "#/definitions/Error"
+      description: >-
+        API for getting the raw text out of a document by applying OCR (more for test purposes).
+      security:
+        - ApiKeyAuth: []
+  /api/v1/documents/binary/classify:
+    post:
+      tags:
+        - "vent.io api Request"
+      operationId: "discover_1"
+      consumes:
+        - "application/json"
+      produces:
+        - "application/json"
+      parameters:
+        - in: "body"
+          name: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/WebOcrDocument"
+          description: The request will trigger an documents/binary/classify
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/ClassificationResult"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        401:
+          description: Unauthorized
+          schema:
+            $ref: "#/definitions/Error"
+        413:
+          description: Payload Too Large
+          schema:
+            $ref: "#/definitions/Error"
+        415:
+          description: Unsupported Media Type
+          schema:
+            $ref: "#/definitions/Error"
+        "403":
+          description: Not permitted
+          schema:
+            $ref: "#/definitions/Error"
+        "404":
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: "#/definitions/Error"
+        "500":
+          description: Internal server error
+          schema:
+            $ref: "#/definitions/Error"
+      description: >-
+        API for getting classifying a document and retrieving the most important information. This is the same
+        as the /documents/classify API with the difference that the input file can be given as Base64 String representation.
+      security:
+        - ApiKeyAuth: []
+
+securityDefinitions:
+  BasicAuth:
+    type: basic
+  ApiKeyAuth:
+    type: apiKey
+    in: header
+    name: Authorization
+definitions:
+  OCRRawResult:
+    type: object
+    properties:
+      text:
+        type: string
+  WebOcrDocument:
+    type: object
+    properties:
+      countryCode:
+        type: string
+        minLength: 1
+      fileName:
+        type: string
+      fileType:
+        type: string
+      searchTerms:
+        type: array
+        items:
+          type: string
+      file:
+        type: string
+      requestId:
+        type: string
+  BestGuess:
+    type: object
+    properties:
+      confidence:
+        type: number
+        format: float
+      typeName:
+        type: string
+  ClassificationResult:
+    type: object
+    properties:
+      fileName:
+        type: string
+      fileType:
+        type: string
+      requestId:
+        type: string
+      bestGuess:
+        $ref: '#/definitions/BestGuess'
+      docResults:
+        type: array
+        items:
+          $ref: '#/definitions/DocTypeResult'
+      searchTerms:
+        $ref: '#/definitions/searchTermsObject'
+  DocTypeResult:
+    type: object
+    properties:
+      docTypeName:
+        type: string
+      keywords:
+        type: object
+        additionalProperties:
+          type: string
+      missingKeywords:
+        type: array
+        items:
+          type: string
+      fullfilment:
+        type: number
+        format: float
+  searchTermsObject:
+    type: object
+    additionalProperties: false
+    properties:
+      foundSearchTerms:
+        type: object
+      missingSearchTerms:
+        type: array
+        items:
+          type: string
+  problemDetails:
+    type: object
+    additionalProperties: false
+    properties:
+      type:
+        type: string
+      title:
+        type: string
+      status:
+        type: integer
+        format: int32
+      detail:
+        type: string
+      instance:
+        type: string
+      extensions:
+        type: object
+        additionalProperties: {}
+  notifyResponseErr:
+    type: object
+    additionalProperties: false
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      data:
+        $ref: '#/definitions/problemDetails'
+  notifyResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+        description: id of offer in partner system
+        minLength: 1
+      offerId:
+        type: string
+        description: Id of offer in fos system
+        minLength: 1
+      status:
+        type: string
+  notifyRequest:
+    type: object
+    additionalProperties: false
+    required:
+      - externalOfferId
+      - offerId
+      - countryCode
+      - financialPartner
+    properties:
+      externalOfferId:
+        type: string
+        description: id of offer in partner system
+        minLength: 1
+      offerId:
+        type: string
+        description: Id of offer in fos system
+        minLength: 1
+      countryCode:
+        type: string
+        minLength: 1
+      financialPartner:
+        type: string
+        description: 'Name of the partner, like dli, dln'
+        minLength: 1
+  unAuthorize:
+    description: oAuth Response.
+    type: object
+    properties:
+      timestamp:
+        type: integer
+        format: int64
+      status:
+        type: integer
+        format: int64
+      error:
+        type: string
+      message:
+        type: string
+      path:
+        type: string
+  oAuthResponse:
+    description: oAuth Response.
+    type: object
+    properties:
+      access_token:
+        type: string
+      token_type:
+        type: string
+      expires_in:
+        type: integer
+        format: int64
+      scope:
+        type: string
+      refresh_token:
+        type: string
+  Address:
+    description: An address object to hold address information.
+    type: object
+    additionalProperties: false
+    properties:
+      street:
+        type: string
+        example: Froelingsstrasse
+      streetNo:
+        type: string
+        example: 15-31
+      city:
+        type: string
+        example: Bad Homburg
+      zipCode:
+        type: string
+        example: 12345
+      countryCode:
+        type: string
+        example: DE
+  partnerDetail:
+    type: object
+    description: 'The company details object holds the relevant crefo information for a given customer. These details are taken from DL Connect in the first step. If DL Connect has stored no details about this customer, an empty object should be returned. '
+    additionalProperties: false
+    properties:
+      crefoId:
+        type: string
+      companyName:
+        type: string
+      legalForm:
+        type: string
+      legalFormKey:
+        type: string
+      address:
+        $ref: '#/definitions/Address'
+  metadata:
+    type: object
+    additionalProperties: false
+    description:  An object that holds meta data information.
+    properties:
+      traceId:
+        type: string
+        description: "traceId used to find out the request details. traceId created with combination of partnerId+date and time, TBD"
+        example: 32746e4b-4324-48db-97c1-4859f9adcb2d-12112019-0300321132
+      requestReceivedDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+          Date and time as ISO format (when do you received the request)
+      requestProcessedDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+          Date and time as ISO format (when do you send the response)
+  partnerResponse:
+    type: object
+    description: |-
+      Response containing an array of partnerDetail objects and the following standard response fields:
+      * meta: a meta object that contains non-standard meta-information such as paging info
+      * data: the primary data
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/partnerDetail'
+  Error:
+    type: object
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      errorCode:
+        type: string
+      errorMessage:
+        type: string
+    description: An object that holds standard error information.
+  ServiceRequestError:
+    type: object
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      error:
+        $ref: '#/definitions/errorDef'
+    description: An object that holds standard error information.
+  errorDef:
+    description: An object that holds standard error information.
+    type: object
+    properties:
+      http:
+        type: string
+      code:
+        type: string
+      text:
+        type: string
+      developerText:
+        description: ""
+        type: string
+      moreInfo:
+        description: ""
+        type: string
+    example:
+      http: 416
+      code: TRADING.0815
+      text: Missing parameter
+      developer_text: Request must specify parameter limit and offset
+  partnerRequest:
+    type: object
+    description: Wrapper object to hold the request for a partnerDetail object.
+    additionalProperties: false
+    properties:
+      companyName:
+        type: string
+        example: Deutsche Leasing AG
+      crefoId:
+        type: string
+        example: 4711 (14 digit number)
+      countryCode:
+        type: string
+        description: Field used to validate by Router.
+        example: DE
+      address:
+        $ref: '#/definitions/Address'
+    required:
+      - countryCode
+  creditAgencyReportResponse:
+    type: object
+    description: Wrapper object to hold the request for a partnerScoreRequest data.
+    required:
+      - externalOfferId
+      - countryCode
+      - data
+    additionalProperties: false
+    properties:
+      statusType:
+        type: string
+        example: OK
+      entity:
+        type: string
+        example: pdf byte stream of data
+      entityType:
+        type: string
+      status:
+        type: string
+        example: 200
+      metadata:
+        type: object
+  decisionPutRequest:
+    type: object
+    description: Wrapper object to hold the request for a partnerScoreRequest data.
+    required:
+      - externalOfferId
+      - countryCode
+      - data
+    additionalProperties: false
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      dlOfferId:
+        type: string
+      data:
+        $ref: '#/definitions/genericRequestData'
+  genericRequest:
+    type: object
+    description: Wrapper object to hold the request for a partnerScoreRequest data.
+    required:
+      - externalOfferId
+      - countryCode
+      - data
+    additionalProperties: false
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      data:
+        $ref: '#/definitions/genericRequestData'
+  documentRequestData:
+    type: object
+    additionalProperties: false
+    properties:
+      templateData:
+        $ref: '#/definitions/templateObject'
+      invoiceData:
+        $ref: '#/definitions/InvoiceDataObject'
+      supplierInvoices:
+        $ref: '#/definitions/supplierInvoiceObjectArray'
+      customer:
+        $ref: '#/definitions/PersonData'
+      mainDealer:
+        description: "This object holds the information of Main dealer data alone "
+        $ref: '#/definitions/PersonData'
+      otherDealer:
+        description: "This object holds the information of dealers apart from Main Dealer."
+        $ref: '#/definitions/PersonDataArray'
+      PaymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+      provision:
+        $ref: '#/definitions/provisionArray'
+      serviceData:
+        $ref: '#/definitions/serviceDataArray'
+      contractData:
+        $ref: '#/definitions/contractDataObject'
+      guarantor:
+        $ref: '#/definitions/PersonData'
+      financingData:
+        $ref: '#/definitions/financingDataObject'
+      scoringDetails:
+        $ref: '#/definitions/scoringDetailsObject'
+      printData:
+        $ref: '#/definitions/printDataObject'
+      printPaymentData:
+        $ref: '#/definitions/PrintPaymentDataArray'
+      PrintTotalPaymentPlan:
+        $ref: '#/definitions/PrintTotalPaymentPlanArray'
+      userData:
+        $ref: '#/definitions/userData'
+      printDataTotalOffer:
+        $ref: '#/definitions/printDataTotalOffer'
+      terminalPayments:
+        $ref: '#/definitions/terminalPaymentsArray'
+  genericRequestData:
+    type: object
+    additionalProperties: false
+    properties:
+      invoiceData:
+        $ref: '#/definitions/InvoiceDataObject'
+      supplierInvoices:
+        $ref: '#/definitions/supplierInvoiceObjectArray'
+      customer:
+        $ref: '#/definitions/PersonData'
+      mainDealer:
+        description: "This object holds the information of Main dealer data alone "
+        $ref: '#/definitions/PersonData'
+      otherDealer:
+        $ref: '#/definitions/PersonDataArray'
+        description: "This object holds the information of dealers apart from Main Dealer."
+      PaymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+      provision:
+        $ref: '#/definitions/provisionArray'
+      serviceData:
+        $ref: '#/definitions/serviceDataArray'
+      contractData:
+        $ref: '#/definitions/contractDataObject'
+      guarantor:
+        $ref: '#/definitions/PersonData'
+      financingData:
+        $ref: '#/definitions/financingDataObject'
+      scoringDetails:
+        $ref: '#/definitions/scoringDetailsObject'
+      printData:
+        $ref: '#/definitions/printDataObject'
+      printPaymentData:
+        $ref: '#/definitions/PrintPaymentDataArray'
+      printTotalPaymentPlan:
+        $ref: '#/definitions/PrintTotalPaymentPlanArray'
+      userData:
+        $ref: '#/definitions/userData'
+      printDataTotalOffer:
+        $ref: '#/definitions/printDataTotalOffer'
+      terminalPayments:
+        $ref: '#/definitions/terminalPaymentsArray'
+  PersonDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/PersonData'
+  templateObject:
+    type: object
+    required:
+      - documentId
+      - documentName
+    additionalProperties: false
+    properties:
+      documentId:
+        type: string
+      documentName:
+        type: string
+        description: |-
+          Type of document
+            * Contract-Document
+            * Order-Document
+            * Acceptance-Certificate
+            * Customer-Invoice
+            * Activation-Document
+        example: "Contract-Document"
+  PrintTotalPaymentPlanArray:
+    type: array
+    items:
+      $ref: '#/definitions/PrintTotalPaymentPlan'
+  PrintPaymentDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/PrintPaymentData'
+  PaymentPlanObjectArray:
+    type: array
+    items:
+      $ref: '#/definitions/paymentPlanObject'
+  paymentPlanObject:
+    type: object
+    description: This is the payment plan object which will be used for Finance and service
+    additionalProperties: false
+    properties:
+      startMonth:
+        type: integer
+        format: int64
+      endMonth:
+        type: integer
+        format: int64
+      netInstallmentAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+          Difference between StartMonth and EndMonth in BPP and must be calculated
+      netInstallmentPercentage:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      numberofMonths:
+        type: integer
+        format: int64
+        description: Required for Contract Creation Proces
+  scoringDetailsObject:
+    type: object
+    additionalProperties: false
+    properties:
+      dlConnectStatus:
+        type: string
+      userId:
+        type: string
+        description: |-
+          FOS delivers the user id who has entered the offer in the system.
+      productLine:
+        type: string
+        description: FOS delivers as default "DL-Direkt"
+      insuranceType:
+        type: string
+        description:  |-
+          Value as ["KEINE", "KEINE-OHNE-HINWEIS", "GAP", "PKW", "NFZ", "MIT-VERSICHERUNG"]
+
+          From FOS
+            Must always deliver as "KEINE"
+
+          From Dl Connect
+            Value as ["KEINE", "KEINE-OHNE-HINWEIS", "GAP", "PKW", "NFZ", "MIT-VERSICHERUNG"]
+        enum:
+          - KEINE
+          - KEINE-OHNE-HINWEIS
+          - GAP
+          - PKW
+          - NFZ
+          - MIT-VERSICHERUNG
+        example: "KEINE"
+      requestType:
+        type: string
+        description:  |-
+          From FOS
+            For day 1 must always sent as ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG
+
+          From Dl Connect
+            String aus ["ENTSCHEIDUNGSANFRAGE-MIT-VERTRAG", "ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG", "TENDENZANFRAGE", "RISIKOKLASSIFIZIERUNG", "NACH-ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG", "RAHMEN-NEU", "RAHMEN-PROLONGATION", "RAHMEN-AUSSCHOEPFUNG", "RAHMEN-AUFSTOCKUNG", "RAHMEN-REDUZIERUNG", "GARANTENRAHMEN-NEU", "GARANTENRAHMEN-PROLONGATION", "GARANTENRAHMEN-AUFSTOCKUNG", "GARANTENRAHMEN-REDUZIERUNG",  "BESTAND-LN-WECHSEL", "BESTAND-SICHERHEITENFREIGABE", "BESTAND-STUNDUNGSANFRAGE", "BESTAND-SONSTIGE"]
+        enum:
+          - ENTSCHEIDUNGSANFRAGE_OHNE_VERTRAG
+          - ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG
+          - TENDENZANFRAGE
+          - RISIKOKLASSIFIZIERUNG
+          - NACH-ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG
+          - RAHMEN-NEU
+          - RAHMEN-PROLONGATION
+          - RAHMEN-AUSSCHOEPFUNG
+          - RAHMEN-AUFSTOCKUNG
+          - RAHMEN-REDUZIERUNG
+          - GARANTENRAHMEN-NEU
+          - GARANTENRAHMEN-PROLONGATION
+          - GARANTENRAHMEN-AUFSTOCKUNG
+          - GARANTENRAHMEN-REDUZIERUNG
+          - BESTAND-LN-WECHSEL
+          - BESTAND-SICHERHEITENFREIGABE
+          - BESTAND-STUNDUNGSANFRAGE
+          - BESTAND
+        example: "ENTSCHEIDUNGSANFRAGE-OHNE-VERTRAG"
+      businessSegment:
+        type: string
+        description:  |-
+          From FOS
+            must always sent as "GIN"
+
+          From DL Connect
+            String aus "AFL", "DAL", "DIV", GIN", "GIT", "GFL", "GRE", "GSM"
+        enum:
+          - AFL
+          - DAL
+          - DIV
+          - GIN
+          - GIT
+          - GFL
+          - GRE
+          - GSM
+        example: "GIN"
+      salesChannel:
+        type: string
+        description:  |-
+          From FOS
+            must always sent as "DIREKT"
+
+          From DL Connect
+            Vlaue as "KEINE-ANGABE", "BUSINESS", "DLDIREKT", "DIREKT", "E-BUSINESS", "KSC", "KEY-PARTNER", "PARTNER", "VERMITTLER"
+        enum:
+          - KEINE-ANGABE
+          - BUSINESS
+          - DLDIREKT
+          - DIREKT
+          - E-BUSINESS
+          - KSC
+          - KEY-PARTNER
+          - PARTNER
+          - VERMITTLER
+        example: "DIREKT"
+      proceduretype:
+        type: string
+        description:  |-
+          FOS delivers as default  "NFZ"
+
+          From DL Connect
+            String aus ["EQUIP", "DRUCK-MEDIA", "NFZ", "IT", "HEF-AUTO", "HEF-BAUMASCHINEN", "HEF-CARAVAN", "FLEET"]
+        enum:
+          - EQUIP
+          - DRUCK-MEDIA
+          - NFZ
+          - IT
+          - HEF-AUTO
+          - HEF-BAUMASCHINEN
+          - HEF-CARAVAN
+          - FLEET
+        example: "NFZ"
+      vpsLetterAddresse:
+        type: string
+        description:  |-
+          From FOS
+            must delivers as "KEINE-ANGABE"
+
+          From DL Connect
+            String aus ["KEINE-ANGABE", "KUNDE", "VERTRIEB"]
+        enum:
+          - KEINE-ANGABE
+          - KUNDE
+          - VERTRIEB
+        example: "KEINE-ANGABE"
+      insuranceKind:
+        type: string
+        description:  |-
+          From FOS
+            must delivers as "KEINE"
+
+          From DL Connect
+            Value as ["KEINE", "KEINE-OHNE-HINWEIS", "GAP", "PKW", "NFZ", "MIT-VERSICHERUNG"]
+        enum:
+          - KEINE
+          - KEINE-OHNE-HINWEIS
+          - GAP
+          - PKW
+          - NFZ
+          - MIT-VERSICHERUNG
+        example: "KEINE"
+      contractKind:
+        type: string
+        description:  |-
+          From FOS
+            must delivers as "KEINE-ANGABE"
+
+          From DL Connect
+            String aus "KEINE-ANGABE", "LEASING", "MIETKAUF", "MIETE-VERMTAUSCH", "RAHMEN-NEU", RAHMEN-ERHOEHUNG", RAHMEN-PROLO", "RAHMEN-KURZPROLO"
+        enum:
+          - KEINE-ANGABE
+          - LEASIN
+          - MIETKAUF
+          - MIETE-VERMTAUSCH
+          - RAHMEN-NEU
+          - RAHMEN-ERHOEHUNG
+          - RAHMEN-PROLO
+          - RAHMEN-KURZPROLO
+        example: "KEINE-ANGABE"
+      riskTeam:
+        type: string
+        description:  |-
+          Rule will be provided for BPP
+
+          From FOS
+            Not required. Default value will be configured in BPP
+      contractTeam:
+        type: string
+        description:  |-
+          Rule will be provided for BPP
+
+          From FOS
+            Not required. Default value will be configured in BPP
+      salesTeam:
+        type: string
+        description:  |-
+          Rule will be provided for BPP
+
+          From FOS
+            Not required. Default value will be configured in BPP
+      gapRatio:
+        type: number
+        format: double
+        description:  |-
+          FOS delivers the value for the gap-ration. It is a number between 1.00 and 6.00
+      salesAssistant:
+        type: string
+      username:
+        type: string
+        description: |-
+          FOS delivers the user name who has entered the offer in the system.
+      businessRelationshipSince:
+        type: integer
+        format: int64
+        description: |-
+          FOS delivers number values which represent years
+      paymentProblems:
+        type: string
+        description: |-
+          FOS delivers one of the following values as mentioned in N169.
+
+          ENUM Values are
+        enum:
+          - KEINE
+          - AELTER_ALS_24_MONATE
+          - AELTER_ALS_12_MONATE
+          - AELTER_ALS_6_MONATE
+          - AKTUELL
+      offerValidTime:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+      selectedObligationKey:
+        type: string
+        description: |-
+          The offer obligations attached to this offer. Valued either
+          "PAY" : special payment
+          "GUARANTOR" : attach guarantor
+          "RISK" : risk markup
+          "VERTRAGSART_MIETKAUF" : change to hire purchase
+  financingDataObject:
+    type: object
+    description: "This object holds the information of the single Asset Data "
+    additionalProperties: false
+    properties:
+      duration:
+        type: integer
+        format: int64
+        description:  |-
+          FOS delivers related to the financing the tenor in month for the leasing object
+      acquistionValue:
+        type: number
+        format: double
+        description: |-
+          This field should have the total investment amount of Single Asset
+          Data Format - Double
+      downPayment:
+        type: number
+        format: double
+        description: |-
+          This field should have the downpayment amount of Single Asset
+          Data Format - Double
+      subsidyAmount:
+        format: double
+        type: number
+        description: |-
+          This field should have the subsidy amount of Single Asset
+          Data Format - Double
+      residualValue:
+        format: double
+        type: number
+        description: |-
+          This field should have the residual value of Single Asset
+          Data Format - Double
+      ballonRate:
+        format: double
+        type: number
+        description: |-
+          This field should have the ballonrate of Single Asset
+          Data Format - Double
+      oldAcquistionValue:
+        format: double
+        type: number
+      assetData:
+        $ref: '#/definitions/assetDataArray'
+  addressDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/addressDataObject'
+  addressDataObject:
+    type: object
+    required:
+      - street
+      - houseNr
+      - zipCode
+      - city
+      - countryCode
+    additionalProperties: false
+    properties:
+      street:
+        type: string
+      houseNr:
+        type: string
+      zipCode:
+        type: string
+      city:
+        type: string
+      countryCode:
+        type: string
+      addressType:
+        type: string
+  assetDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/assetDataObject'
+  assetDataObject:
+    type: object
+    additionalProperties: false
+    properties:
+      fahrgestellnummer:
+        type: string
+        description: |-
+          DCS Tag name added
+      chasisNumber:
+        type: string
+      licensePlateNumber:
+        type: string
+        example:
+          XYZ N 000
+      componentName:
+        type: string
+      componentDescription:
+        type: string
+      fosComponentID:
+        type: string
+      objectDelivered:
+        type: string
+        description: |-
+          The field with following LOV
+          "im Werk"
+          "nicht im Werk"
+      oldChasisNumber:
+        type: string
+      oldLicensePlateNumber:
+        type: string
+      assetDeleted:
+        type: string
+        description: |-
+          The field with following LOV
+          "J"
+          "N"
+  contractDataObject:
+    type: object
+    description: |-
+      This data class is refer to contains the information about the financing data of the Asset
+      The information in this block is for the complete Asset and not for single Asset
+    additionalProperties: false
+    properties:
+      duration:
+        type: integer
+        format: int64
+      externalSysOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      applicationName:
+        type: string
+        description: |-
+          FOS delivers a default "FOS" which represents the offer system
+      offerZins:
+        type: number
+        format: double
+        description: |-
+          FOS delivers the interest rate out of the calculation of the offer
+      contractStartDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+      companyNumber:
+        type: string
+      procurementType:
+        type: string
+        description: |-
+          It is to define whether it Sale and Lease Back or Bestelleintritt
+
+          FOS must sent as "EINTRITT" .
+
+          In case of Sale and Lease Back it needs to be sent as "SLB"
+        enum:
+          - BESTELLUNG
+          - SLB
+          - EINTRITT
+        example: "BESTELLUNG"
+      dueDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+
+          Fälligkeitdatum für DL
+
+          Leasing Rechnung Fälligkeitsdatum
+
+          IF nutzung  then it should be first day of next month of Abhnamedatum
+          e.g Abhnamedatum = 10.10.2019
+             then please sent as 01.11.2019
+
+
+          If not nutzung then it should be first day of the same month of Abhnamedatum
+
+          e.g Abhnamedatum = 10.10.2019
+          then please sent as 01.10.2019
+      installmentPattern:
+        type: string
+        description: |-
+          String aus "KEINE-ANGABE", "LINEAR", "SONDER" ,"SAISON", "DEGRESSIV", "TILGUNGSDARLEHEN"
+
+          From FOS-
+          For Annuity please sent as "LINEAR"
+
+          For Others please send as "SAISON"
+
+          From DL Connect
+          String aus "KEINE-ANGABE", "LINEAR", "SONDER" ,"SAISON", "DEGRESSIV", "TILGUNGSDARLEHEN"
+        enum:
+          - KEINE-ANGABE
+          - LINEAR
+          - SONDER
+          - SAISON
+          - DEGRESSIV
+          - TILGUNGSDARLEHEN
+        example: "LINEAR"
+      paymentPattern:
+        type: string
+        description: |-
+          The possible values as
+          LINEAR
+          NUTZUNGSENTSCHAEDINUNG
+          DEGRESSIV
+          SAISON
+          GEBROCHEN
+          PROGRESSIV
+
+          From FOS
+            In case of Nutzung please send as NUTZUNGSENTSCHAEDINUNG
+
+            For Annuity please sent as "LINEAR"
+
+            For Others please send as "SAISON"
+        enum:
+          - NUTZUNGSENTSCHAEDINUNG
+          - LINEAR
+          - SAISON
+          - DEGRESSIV
+          - GEBROCHEN
+          - PROGRESSIV
+        example: "NUTZUNGSENTSCHAEDINUNG"
+      paymentCycle:
+        type: string
+        description: |-
+          This field is used to denote whether the payment rhythms of the offer
+
+          Mandatory attribute with possible values as
+          MONTHLY
+          QUARTERLY
+          HALFYEARLY
+          YEARLY
+
+          From DL Connect
+            String aus "MONTHLY", "QUARTERLY"
+        enum:
+          - KEINE-ANGABE
+          - MONATLICH
+          - QUARTALSWEISE
+          - HALBJAEHRLICH
+          - JAEHRLICH
+        example: "KEINE-ANGABE"
+      paymentCode:
+        type: string
+        description: |-
+          This field is used to denote whether the payment rhythms of the offer
+      totalResidualValue:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      reductionFactor:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      totalDownpayment:
+        type: number
+        format: double
+        description: |-
+          FOS delivers the total down payment amount over all objects.
+
+          This is Anzahlung from Kunde.
+          If available please send the value. If not available then no value is sent
+      directDebit:
+        type: integer
+        format: int64
+        description: |-
+          This field is to indicate whether the Monthly rental must be direct debited from Customer Bank account or not.
+
+          Value 0 = Direct Debit from Customer Account
+
+          Value 1  = Überweisung (Customer transfers monthly the rate )
+
+          From FOS
+            Must always sent as 0
+        default: 0
+      financeVATPercentage:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+
+          To provide the information as 19 (when 19%) , 20 ( when 20%) , 0 (when 0%) etc..
+
+          From FOS
+          Must sent as 19 in case of 19% VAT (0r) 0 in case of 0% VAT
+        example: 19
+      vatFlagMK:
+        type: string
+        description: |-
+          For MK contracts , DL must needs to get additional information about handling of VAT for SMB / Bestelleintritt.
+
+          For SMB and customer is not vorsteuerabzugsberechtigt then expecting value "A"
+
+          For SMB and customer is not vorsteuerabzugsberechtigt then expecting value "O". So Vat for the Zins will be collected monthly from customer
+
+          For Bestelleintritt value expected is "C"
+          So the VAT for the complete Rate will be collected along with first installment
+
+          From FOS
+          As SCB handles Bestelleintritt Must always sent as "C"
+        example: "C"
+      bgn:
+        type: integer
+        format: int64
+        description: |-
+          FOS delivers the value for BGN.it is a number value in years.
+
+          The depreciation table for general-purpose assets shows the useful lives for fixed assets that are not used for specific industries
+      salesArea1Number:
+        type: integer
+        format: int64
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea1Percentage:
+        type: number
+        format: double
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea2Number:
+        type: integer
+        format: int64
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea2Percentage:
+        type: number
+        format: double
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea3Number:
+        type: integer
+        format: int64
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      salesArea3Percentage:
+        type: number
+        format: double
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      externalSysProductCode:
+        type: integer
+      externalSysProductName:
+        type: string
+        description: |-
+          Product name from FOS
+      elementarProductDL:
+        type: string
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+
+          From FOS
+            Mapping will be done in BPP for the FOS Product to DL Product
+
+          From DL Connect
+            String aus "KEINE-ANGABE", "V1", "V2", "V3", "MK", "KM", "CE", "CO", "KV", "K4", "LA", "LC", "LS", "LT", "LV", "PT", "ST", "TA", "TK", "TO", "T1", "T3", "VA", "AF 7", "CH", "K3", "K5", "LR", "V1-LGS", "V2-LGS", "V3-LGS", "AT", "AK", "V-", "VK", "VV," "IK (ORBI)"
+        enum:
+          - KEINE-ANGABE
+          - V1
+          - V2
+          - V3
+          - MK
+          - KM
+          - CE
+          - CO
+          - KV
+          - K4
+          - LA
+          - LC
+          - LS
+          - LT
+          - LV
+          - PT
+          - ST
+          - TA
+          - TK
+          - TO
+          - T1
+          - T3
+          - VA
+          - AF 7
+          - CH
+          - K3
+          - K5
+          - LR
+          - V1-LGS
+          - V2-LGS
+          - V3-LGS
+          - AT
+          - AK
+          - V-
+          - VK
+          - VV
+          - IK (ORBI)
+      masterProductDL:
+        type: string
+        description: |-
+          To be defined in BPP
+          Rule will be provided for BPP
+      contractWay:
+        type: string
+        description: |-
+          This is Vertragsweg.To be defined in BPP
+      distributionChannel_Level1:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      distributionChannel_Level2:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      businessSegment_Level1:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      businessSegment_Level2:
+        type: string
+        description: |-
+          This is Geschäftsfeld.To be defined in BPP
+      zulassungsdatum:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data format - Date
+      afa:
+        type: integer
+      noofShifts:
+        type: integer
+      downpaymentPaidFlag:
+        type: string
+        readOnly: true
+        description: |-
+          For the Vertrags system we have the field to indicate whether the downpayment must be direct debited from the customer account (or) not
+
+          From FOS
+            If downpayment is available then please send as "N".
+
+            IF not please send empty
+        example: "N"
+      usedObject:
+        type: string
+        readOnly: true
+        description: |-
+          From FOS
+            If it is used object then set as "J",  IF it is a neu object then sent as "N"
+        enum:
+          - J
+          - N
+        example: "N"
+      offerSignedDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data format - Date
+          This is the Angebotsunterschritsdatum
+      objectRiskClass:
+        type: string
+        description: |-
+          In BPP Configured as NFZ
+
+          From DL Connect
+            String aus ["IT", "NFZ", "NFZ-I", "NFZ-II", NFZ-III", "COM", "DRUCK-I", "DRUCK-II", "DRUCK-III", "PKW", "§EQUIP-I", "EQUIP-II", "EQUIP-III", "KEINE-ANGABE" ]
+      zielmarkt:
+        type: string
+        description: |-
+          String aus "PKW", "IT", "NFZ", "EQUIP", "ITK", "GARANTIEN"
+
+          From FOS
+            Must always sent as NFZ
+
+          From DL Connect
+            String aus "PKW", "IT", "NFZ", "EQUIP", "ITK", "GARANTIEN"
+        enum:
+          - PKW
+          - IT
+          - NFZ
+          - EQUIP
+          - ITK
+          - GARANTIEN
+        example:
+          - NFZ
+      objectType:
+        type: string
+        description: |-
+          FOS delivers as default "NUTZFAHRZEUGE"
+        default: NUTZFAHRZEUGE
+      objectPackageDescription:
+        type: string
+        description: |-
+          FOS delivers the object description
+      noOfAssets:
+        type: integer
+        format: int64
+        description: It is number of Fahrzeug/Assets in the offer
+      totalSubsidyAmount:
+        type: number
+        format: double
+      totalAcquistionValue:
+        type: number
+        format: double
+        description: |-
+          FOS delivers the total aquisition amount over all objects.
+      offerDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          FOS delivers the date when the offer is generated for the customer
+      totalExternalBGL:
+        type: number
+        format: double
+      totalexternalDiscount:
+        type: number
+        format: double
+      totalInternalDiscount:
+        type: number
+        format: double
+      minimumDuration:
+        type: integer
+      ageInMonths:
+        type: integer
+        format: int64
+        description: |-
+          FOS delivers the age in months for the object
+      totalFinalPayment:
+        type: number
+        format: double
+      ObjectPackageDescription2:
+        type: string
+      location:
+        type: string
+      usageType:
+        type: string
+        description: |-
+          This is werteverlauf
+
+          From FOS
+            Must always sent as NORMAL
+
+          From DL Connect
+            String aus ["NORMAL", "HOCH"]
+        default: NORMAL
+      annualMileage:
+        type: integer
+        format: int64
+        description: |-
+          FOS delivers the annual milage of the object
+      usedBuyRate:
+        type: number
+        format: double
+        description: |-
+          Data format - Double
+      buyRateDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data format - Date
+      buyRateTableauVersion:
+        type: string
+      fosTotalZins:
+        type: number
+        format: double
+      fosDealSize:
+        type: string
+      technicalSLB:
+        type: boolean
+      paymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+  serviceDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/serviceDataObject'
+  serviceDataObject:
+    type: object
+    description: |-
+      This data class is refer to Details of the Services included in the offer (Insurance, maintenance, warranties, etc.)
+      One entry is needed for each service containing the information for all assets
+    additionalProperties: false
+    properties:
+      externalSysProductName:
+        type: string
+      externalSysProductCode:
+        type: integer
+        description: |-
+          This field is used for the mapping of FOS Product to DL Product.  This will have the value for the finance products
+
+          FOS ProductName
+          Trailer Service
+          Kühlgeräte Service
+          Reifenservice
+          Reifen Gewaltschaden
+          Muldendienst
+          Rollplanendienst
+          Schiebeverdeck Service
+          Schubbodenservice
+          Ladebordwand Service
+      masterProduct:
+        type: string
+        description: |-
+          Must be defaulted in BPP based on the Product name
+
+          Rule will be provided for BPP
+      elementarProduct:
+        type: string
+        description: |-
+          Must be defaulted in BPP based on the Product name
+
+          Rule will be provided for BPP
+      saleProcess:
+        type: string
+        description: |-
+          Value for this fields are
+
+          "D" for DirektAbschluss
+          "I" for IndirektAbschluss
+
+          Must always sent as "D"
+        enum:
+          - D
+          - I
+      extensionFlag:
+        type: string
+        description: |-
+          Must be defaulted in BPP based on the Product name
+
+          Rule will be provided for BPP
+      serviceNetAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      paymentMode:
+        type: string
+        description: |-
+          Mandatory attribute with possible values as
+          MONTHLY
+          QUARTERLY
+          HALFYEARLY
+          YEARLY
+        enum:
+          - MONTHLY
+          - QUARTERLY
+          - HALFYEARLY
+          - YEARLY
+      serviceVATPercentage:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      paymentPlan:
+        $ref: '#/definitions/PaymentPlanObjectArray'
+  provisionArray:
+    type: array
+    items:
+      $ref: '#/definitions/provisionObject'
+  provisionObject:
+    type: object
+    description: This is the provision details of the offer which has inherited the Persondata, addressdata, bankdata
+    additionalProperties: false
+    properties:
+      commisionType:
+        type: string
+        description: Value to be defined by DL for this field which needs to be sent by FOS
+      comissionNetAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      comissionVatPercentage:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+          It is the VAT % (0 % or 19% or 20 %  which needs to be sent by Source System)
+
+          BPP
+          If the value is 0% then please send in offer transfer as "NO".  Else sent as "YES"
+
+          For 19%  VAT please sent as 19 in this field
+          For 20% VAT please sent as 20
+          For 0% VAT please sent as 0
+      provisioner:
+        $ref: '#/definitions/PersonData'
+  supplierInvoiceObjectArray:
+    type: array
+    items:
+      $ref: '#/definitions/supplierInvoiceObject'
+  supplierInvoiceObject:
+    type: object
+    description: "This object holds the information of Supplier invoices data"
+    additionalProperties: false
+    properties:
+      invoiceNumber:
+        type: string
+      invoiceDatum:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+      invoiceNetAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      invoiceGrossAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      invoiceVatAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      supplier:
+        $ref: '#/definitions/PersonData'
+  InvoiceDataObject:
+    type: object
+    description: This data class is inherited for the SupplierInvoices (the Supplier who sends the invoices for the offer)
+    additionalProperties: false
+    properties:
+      invoiceNumber:
+        type: string
+      invoiceDatum:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+      invoiceNetAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      invoiceGrossAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      invoiceVatAmount:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      customer:
+        $ref: '#/definitions/PersonData'
+      invoiceType:
+        type: string
+        description: Value as "RE", "GU"
+        enum: [RE, GU]
+        example: "RE"
+  bankDataArray:
+    type: array
+    items:
+      $ref: '#/definitions/bankData'
+  bankData:
+    type: object
+    description: Bank data.
+    required:
+      - iban
+      - bic
+      - mandateCity
+      - mandateSignatureDatum
+      - bankCity
+      - accountHolderName
+    additionalProperties: false
+    properties:
+      iban:
+        type: string
+      bic:
+        type: string
+      mandateCity:
+        type: string
+      mandateSignatureDatum:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+      bankCity:
+        type: string
+      bankName:
+        type: string
+      bankAccountNr:
+        type: string
+      blz:
+        type: string
+      bankType:
+        type: string
+      accountHolderName:
+        type: string
+  PersonData:
+    type: object
+    description: "This object holds the information of Customer data"
+    additionalProperties: false
+    properties:
+      name1:
+        type: string
+        description: |-
+          Customer name
+      name2:
+        type: string
+      salutation:
+        type: string
+        description: Value as "HERR", "FRAU", "FIRMA", "EHELEUTE", "KEINE-ANGABE"
+        enum: [HERR, FRAU, FIRMA, EHELEUTE, KEINE-ANGABE]
+        example: "HERR"
+      dateOfBirth:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data Format - Date
+      maidenName:
+        type: string
+      title:
+        type: string
+      formOfEnterprise:
+        type: string
+        description: |-
+          This field refers to Unternehmensform
+      partnerNumber:
+        type: string
+        description: |-
+          Dummy Partner number as it is sent from GAA today will be configured in BPP
+      telephone:
+        type: string
+      telefax:
+        type: string
+      homepage:
+        type: string
+      email:
+        type: string
+      creditworthiness:
+        type: number
+        format: double
+        description: |-
+          Data Format - Double
+      crefonumber:
+        type: string
+        readOnly: true
+        maxLength: 14
+        description: maximum length 14
+      taxIdentifier:
+        type: string
+        description: |-
+          This is Customer Umsatztsteuer Id
+      taxIdentifierVat:
+        type: string
+        description: |-
+          This is Customer Steuer-Nr
+      tradeRegisterId:
+        type: string
+        description: |-
+          This is Handelregister-Nr of customer
+      tradeRegisterCity:
+        type: string
+        description: |-
+          This is City of Handelregister-Nr of customer
+      vatRefund:
+        type: string
+        description: |-
+          This field indicates whether the customer is Vorsteuerabzugsberechtigt
+
+          IF "Ja" then sent 1 . If "Nein" then 0
+      addressData:
+        $ref: '#/definitions/addressDataArray'
+      bankData:
+        $ref: '#/definitions/bankDataArray'
+  partnerScoreResponse:
+    type: object
+    description: Wrapper object to hold the value of partnerScoreResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+    additionalProperties: false
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      status:
+        type: string
+  decisionStatusResponse:
+    type: object
+    description: Wrapper object to hold the value of partnerScoreResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - data
+    additionalProperties: false
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      status:
+        type: string
+  partnerGetScoreResponse:
+    type: object
+    description: Wrapper object to hold the value of partnerScoreResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - data
+    additionalProperties: false
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      decisionStatus:
+        type: string
+      decisionSubStatus:
+        type: string
+      scoreObligations:
+        type: array
+        items:
+          additionalProperties: false
+          description: string value of obligationKey
+          properties:
+            text:
+              type: string
+            obligationKey:
+              type: string
+      dlSubOfferIDData:
+        type: array
+        items:
+          $ref: '#/definitions/dlSubOfferIDDataObject'
+  documentRequest:
+    type: "object"
+    required:
+      - externalOfferId
+      - countryCode
+      - dlOfferId
+      - data
+    additionalProperties: false
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      dlOfferId:
+        type: string
+      data:
+        $ref: "#/definitions/documentRequestData"
+  documentResponse:
+    type: object
+    description: Wrapper object to hold the value of documentResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - status
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      documentId:
+        type: string
+      pdfByteStream:
+        type: string
+        description: PDF byte stream data base 64 format
+  offerRequest:
+    type: "object"
+    required:
+      - externalOfferId
+      - dlOfferId
+      - data
+    additionalProperties: false
+    properties:
+      externalOfferId:
+        type: string
+      countryCode:
+        type: string
+      dlOfferId:
+        type: string
+      data:
+        $ref: "#/definitions/genericRequestData"
+  offerResponse:
+    type: object
+    description: Wrapper object to hold the value of offerResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+      - status
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      status:
+        type: string
+  printDataObject:
+    type: object
+    description: |-
+      Wrapper object to hold the value of print data.
+      This data holds additional information that are relevant for printing documents.
+    properties:
+      deliveryDate:
+        type: string
+        description: |-
+          Liefertermin
+          must be greater than or equal to unterschriftBestelleintrittDatum
+      accessoryParts:
+        type: string
+        description: |-
+          zübehöreteile
+      objectLocation:
+        type: string
+        description: |-
+          Standort
+      manufactureYear:
+        type: string
+        description: |-
+          Herstellungsjahr
+      durationPrint:
+        type: integer
+        description: |-
+          Since for MK with Ballon rate the duration to be printed is different from the actual duration of the contract we need to have additional field for Duration where FOS sends the value
+          For Leasing products the field duration and durationPrint will always be same.
+          For MK without ballonrate also both will be same
+          Only for MK with ballonrate the fields will have different values
+      financeRateSumNet:
+        type: number
+        format: double
+        description: |-
+          Sum of All Lease Rentals of the finance Part. ( without Service)
+          Sum of All Lease Rentals of the finance Part. ( without Service)
+
+          Description added on 26.11.2019
+          i.e Summe aller Raten für den Finanzteil.  For e.g  For linear payment if the duration is 12 months and Monthly finance rate is 100 €, and we have ballon rate as 1000 € then FOS has to deliver (12* 100) + 1000 € = 1300 €
+
+          This sum is with Ballon Rate
+      ballonRate:
+        type: number
+        format: double
+        description: |-
+          Ballon Rate
+      singleTimePaymentSumNet:
+        type: number
+        format: double
+        description: |-
+          This is the sum of following values
+          Summe of Alle Raten für Finance ( ohne Service )  +
+          Sonderzahlung / Anzahlung Net +
+          Ballon Rate
+      singleTimePaymentSumVat:
+        type: number
+        format: double
+        description: |-
+          This is the vat amount calculated for the sum of following values
+          Summe of Alle Raten für Finance ( ohne Service )  +
+          Sonderzahlung / Anzahlung Net +
+          Ballon Rate
+      chargeFeeNet:
+        type: number
+        format: double
+        description: |-
+          Bearbeitungsgebhür Netto
+      monthlyFinanceRateNet:
+        type: number
+        format: double
+        description: |-
+          This is the monthly Rate of the Finance component
+          For all contract types please always deliver the first month Finance Rate for linear Zahlungsplan.  For saisonal this will be empty.
+      monthlyFinanceRateVat:
+        type: number
+        format: double
+        description: |-
+          This is the monthly Rate of the Finance component
+
+          It is calculated as = monthlyFinanceRateNet * 19%
+      monthlyServiceRateNet:
+        type: number
+        format: double
+        description: |-
+          This is the sum of all the service components without GAP Cover monthly Rate  ( i.e First month Rate Sum and not sum of rates for the complete duration)
+
+          Description changed on 26.11.2019
+          For all contract types please always deliver the sum first month Service Rate for linear Zahlungsplan.  For saisonal this will be empty.
+
+          For eg if we have 3 services and 1 GAP Cover
+             Service 1 =  Monthly rate = 80 €
+             Service 2 =  Monthly rate = 700 €
+             Service 3 =  Monthly rate = 100 €
+             GAP Cover =  Monthly rate = 10 €
+
+          Then FOS has to deliver here 80 + 70 + 100 = 250 €
+      monthlyServiceRateVat:
+        type: number
+        format: double
+        description: |-
+          This is the VAT Amount for the sum of all the service without GAP Cover components monthly Rate  ( i.e First month Rate Sum and not sum of rates for the complete duration)
+
+          Description changed on 26.11.2019
+          For all contract types please always deliver the sum first month Service Rate for linear Zahlungsplan.  For saisonal this will be empty.
+
+          For eg if we have 3 services and 1 GAP Cover
+             Service 1 =  Monthly rate = 80 €
+             Service 2 =  Monthly rate = 700 €
+             Service 3 =  Monthly rate = 100 €
+             GAP Cover =  Monthly rate = 10 €
+
+          Then FOS has to deliver here (80 + 70 + 100)
+                             = (250 *19%)
+                             = 47.5 €
+      serviceGapCoverMonthlyRateNet:
+        type: number
+        format: double
+        description: |-
+          This is the monthly rate of GAP Cover  service
+
+          For all contract types please always deliver the sum first month Service Rate for linear Zahlungsplan.  For saisonal this will be empty.
+
+          For eg if we have 3 services and 1 GAP Cover
+             Service 1 =  Monthly rate = 80 €
+             Service 2 =  Monthly rate = 700 €
+             Service 3 =  Monthly rate = 100 €
+             GAP Cover =  Monthly rate = 10 €
+
+          Then FOS has to deliver here 10 €
+      serviceGapCoverMonthlyRateVAT:
+        type: number
+        format: double
+        description: |-
+          This is the VAT Amount for the monthly rate of GAP Cover  service
+
+          For all contract types please always deliver the sum first month Service Rate for linear Zahlungsplan.  For saisonal this will be empty.
+
+          For eg if we have 3 services and 1 GAP Cover
+             Service 1 =  Monthly rate = 80 €
+             Service 2 =  Monthly rate = 700 €
+             Service 3 =  Monthly rate = 100 €
+             GAP Cover =  Monthly rate = 10 €
+
+          Then FOS has to deliver here 10  * 19% =  1.9 €
+      monthlyRateVatTotal:
+        type: number
+        format: double
+        description: |-
+          For Mietkauf, please sum the following fields
+
+          monthlyServiceRateVat + serviceGapCoverMonthlyRateVAT
+
+          For All Leasing Products, please sum following fields
+
+          monthlyServiceRateVat + serviceGapCoverMonthlyRateVAT + monthlyFinanceRateVat
+      monthlyRateNetTotal:
+        type: number
+        format: double
+        description: |-
+          This is sum of following fields which was calculated
+          monthlyFinanceRateNet + monthlyServiceRateNet + serviceGapCoverMonthlyRateNet
+      monthlyRateGross:
+        type: number
+        format: double
+        description: |-
+          This is sum of following fields which was calculated
+          monthlyRateNetTotal + monthlyRateVatTotal
+      bankName:
+        type: string
+        description: |-
+          This is the name of the bank. To be added to the bank section
+      totalDownPaymentVat:
+        type: number
+        format: double
+        description: |-
+          This is the vat amount for the sonderzahlung / Anzahlung
+      totalDownPaymentGross:
+        type: number
+        format: double
+        description: |-
+          This is the vat amount for the sonderzahlung / Anzahlung + Sonderazhlung Netti
+      kilometerStand:
+        type: string
+        description: |-
+          This is the sum of vat amount for the monthlyRateNet + monthlyRateNet
+      agreedKilometer:
+        type: integer
+        description: |-
+          Vereinbarte KM-Leistung
+      chargeAdditionalKilometer:
+        type: number
+        format: double
+        description: |-
+          Mehrpreis je zusätzlichem km
+      agreedOperatingHourCoolingUnit:
+        type: string
+        description: |-
+          Vereinbarte Betriebsstunden des Kühlgerätes
+      additionalChargeCoolingUnit:
+        type: number
+        format: double
+        description: |-
+          Mehrpreis je zusätzlicher Betriebsstunde des Kühlgerätes
+      priceNotUsedReifenprofils:
+        type: number
+        format: double
+        description: |-
+          Preis je mm nicht mehr nutzbaren Reifenprofils (vgl. Ziff. 2.2 der Allgemeinen Full Service
+          Bedingungen)
+      chargeFeeandDownPymtBrutto:
+        type: number
+        format: double
+        description: |-
+          This is sum of following fields which was calculated
+
+          chargeFee + Sonderzahlung Net +  VAT on ChargeFee & Sonderzahlung
+      dueDateStart:
+        type: string
+        description: |-
+          This is the day portion of the Fälligkeit datum. 1 or 15
+      ansprechPartnerTitle:
+        type: string
+        description: |-
+          This is the ansprechpartner für Kunde
+      ansprechPartnerName1:
+        type: string
+        description: |-
+          This is the ansprechpartner für Kunde
+      ansprechPartnerName2:
+        type: string
+        description: |-
+          This is the ansprechpartner für Kunde
+      purchaseOrderSignatureDate:
+        type: string
+        format: date-time
+        description: |-
+          must be greater than or equal to kundeVertragUnterschriftsDatum
+      offerAcceptanceLetterSignatureDate:
+        type: string
+        format: date-time
+        description: |-
+          must be greater than or equal to unterschriftBestelleintrittDatum
+      contractDocumentSignatureDatum:
+        type: string
+        format: date-time
+      tyreSize:
+        type: string
+        description: |-
+          This is Reifengröße
+      objectUsageByCustomer:
+        type: string
+        description: |-
+          This is the field Einsatzart.  If the option selected is Eigennutzung durch Kunden then set the value as 1. If not sent as 0
+      objectUsageByThirdParty:
+        type: string
+        description: |-
+          This is the field Einsatzart.  If the option selected is Gewerbliche Überlassung an Dritte then set the value as 1. If not sent as 0
+      chargeFeeVAT:
+        type: number
+        format: double
+        description: |-
+          Bearbeitungsgebhür VAT
+          DCS Tag added
+      vatAmountChargeFeeDownPymt:
+        type: number
+        format: double
+        description: |-
+          This is the VAT Amount for the Sum of Downpayment/ Anzahlung + Bearbeitungsgebhür
+      interestAmountMK:
+        type: number
+        format: double
+        description: |-
+          This is the value summe aller Rate ohne Sonderzahlung - Anschaffungswert
+
+          Calculated as follows using existing fields
+            financeRateSumNet - totalAcquistionValue
+      objectInformation:
+        type: string
+        description: |-
+          This is the Gegenstand of the object
+      ansprechPartnerSalutation:
+        type: string
+        description: |-
+          This is the ansprechpartner für Kunde
+      financeRateSumNetNoBallonRate:
+        type: number
+        format: double
+        description: |-
+          Sum of All Lease Rentals of the finance Part. ( without Service)
+
+          i.e Summe aller Raten für den Finanzteil.  For e.g  For linear payment if the duration is 12 months and Monthly finance rate is 100 €, and we have ballon rate as 1000 € then FOS has to deliver (12* 100) € = 1200 €
+
+          This sum is without Ballon Rate
+      financeRateDownPymtSumVat:
+        type: number
+        format: double
+        description: |-
+          Mwst Betrag for Sum of All Lease Rentals of the finance Part. ( without Service)  + Down Payment
+
+          For e.g  For linear payment if the duration is 12 months and Monthly finance rate is 100 €, and we have ballon rate as 1000 € and down payment of 500 €
+           then FOS has to deliver = (12* 100) + 1000 €  + 500 €
+                                                     = 1800 € * 19%
+                                                      = 342 €
+          In  general it is sum of field
+           ( "financeRateSumNet" + "totalDownPaymentt" ) * 19 %
+
+      customerInvoiceSumValue1:
+        type: number
+        format: double
+        description: |-
+          This is the VAT Amount for the sum of existing fields
+
+          ( financeRateSumNet + chargeFeeNet ) * 19%
+      customerInvoiceSumValue2:
+        type: number
+        format: double
+        description: |-
+          This is the sum of existing fields
+
+          financeRateSumNet + chargeFeeNet + customerInvoiceVatSumValue1
+      customerInvoiceSumValue3:
+        type: number
+        format: double
+        description: |-
+          This is the sum of existing fields
+
+          financeRateDownPymtSumVat + totalDownPayment
+      usageFeeNet:
+        type: number
+        format: double
+        description: |-
+          This is the Nutzungsentgeld
+      customerInvoiceSumValue4:
+        type: number
+        format: double
+        description: |-
+          This is the Vat amount for the sum of existing fields
+
+          (monthlyFinanceRateNet + usageFeeNet +  chargeFeeNet= *19%
+      customerInvoiceSumValue5:
+        type: number
+        format: double
+        description: |-
+          This is the  sum of existing fields
+
+          (monthlyFinanceRateNet + chargeFeeNet +  chargeFeeVat)
+      customerInvoiceSumValue6:
+        type: number
+        format: double
+        description: |-
+          This is the  VAT amount of existing
+
+          customerInvoiceSumValue5 * 19%
+      customerInvoiceSumValue7:
+        type: number
+        format: double
+        description: |-
+          This is the  sum of existing fields
+
+          customerInvoiceSumValue6 + customerInvoiceSumValue5
+      serviceVatTotal:
+        type: number
+        format: double
+        description: |-
+          This is the  sum of existing fields
+
+          monthlyServiceRateVat + serviceGapCoverMonthlyRateVat
+      serviceVatGross:
+        type: number
+        format: double
+        description: |-
+          This is the  sum of existing fields
+
+          monthlyServiceRateVat + serviceGapCoverMonthlyRateVat + monthlyServiceRateNet + serviceGapCoverMonthlyRateNet
+      totalOldAcquistionValue:
+        type: number
+        format: double
+        description: |-
+          This is needed for the ratenanpassung.  If in case of Acquistion value is changed then this field  should be delivered the old value
+      ansprechPartnerTelefonr:
+        type: string
+      ansprechPartnerEmail:
+        type: string
+      ansprechPartnerLetterSalutation:
+        type: string
+      serviceRolltor:
+        type: boolean
+      serviceTrennwand:
+        type: boolean
+      shapeCoverSelected:
+        type: boolean
+      shapeCoverMonthlyRate:
+        type: number
+        format: double
+      shapeCoverTotalAmount:
+        type: number
+        format: double
+      kalkulatedContractStartDate:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data format - Date
+      ansprechPartnerMobileNr:
+        type: string
+      purchaseOrderAmount:
+        type: number
+        format: double
+        description: |-
+          Amount to be printed for the Purchase Order Template
+      additionalObjectDescription:
+        type: string
+        description: |-
+          The additional object description which is required to be printed in Purchase order template
+      newContractStartDayValue:
+        type: string
+      collatedChasisNr:
+        type: string
+      deliveryDateExpected:
+        type: string
+        format: 'date-time'
+        description: |-
+          Data format - Date
+      acquistionValueVAT:
+        type: number
+        format: double
+        description: |-
+          Data format - double
+      acquistionValueGross:
+        type: number
+        format: double
+        description: |-
+          Data format - double
+      totalAcquisitionValueInWord:
+        type: string
+      lastCustomerInvoicePrintDate:
+        type: string
+        format: date -dd.mm.yyyy
+        description: |-
+          Data format - Date dd.mm.yyyy
+      registrationDate:
+        type: string
+        format: date -dd.mm.yyyy
+        description: |-
+          Data format - Date dd.mm.yyyy
+      gapCoverAddedAfterContractPrint:
+        type: boolean
+        description: |-
+          if the GAP Cover Service was added after printing the Contract document then this field must be sent as 1. If not then it must be sent as 0 (zero)
+  PrintPaymentData:
+    type: object
+    description: |-
+      This data holds the information how the payment plan needs to be printed in the Customer Rechnung.
+      This object is mandatory for printing the templates
+    additionalProperties: false
+    properties:
+      startMonthName:
+        type: string
+        description: |-
+          This field to indicate the month name when the  payment plan starts
+          see worksheet "printPaymentData" for more details
+      endMonthName:
+        type: string
+        description: |-
+          This field to indicate the month name when the  payment plan ends
+          see worksheet "printPaymentData" for more details
+      totalduration:
+        type: integer
+        description: |-
+          This is the value same as the field "durationPrint"
+      numberOfPayments:
+        type: integer
+        description: |-
+          This is the no of payments . see worksheet "printPaymentData" for more details
+      financeMonthlyRate:
+        type: number
+        format: double
+        description: |-
+          This is the finance rate for this period
+      totalSumFinanceRate:
+        type: number
+        format: double
+        description: |-
+          This is the sum of the finance rate for this period.
+      totalSumFinanceRateVat:
+        type: number
+        format: double
+        description: |-
+          This is the vat amount for the finance rate
+          totalSumFinanceRate * 19%
+      totalSumFinanceRateGross:
+        type: number
+        format: double
+        description: |-
+          This is the Gross amount for the finance rate
+          totalSumFinanceRate + totalSumFinanceRateVat
+
+  PrintTotalPaymentPlan:
+    type: object
+    description: |-
+      This data holds the information how the Saisonal and High Low payment plan needs to be printed in the  document
+      This object is not required for Annuity and Linear Payment Plan.
+      For Saisonal and High Low this object will have the information for each Month.
+    additionalProperties: false
+    properties:
+      startMonth:
+        type: integer
+      financeRateNet:
+        type: number
+        format: double
+      gapCoverRateNet:
+        type: number
+        format: double
+      serviceRateNet:
+        type: number
+        format: double
+      vatAmount:
+        type: number
+        format: double
+      grossAmount:
+        type: number
+        format: double
+  userData:
+    type: object
+    description: |-
+      This object holds the information related to the user.
+    additionalProperties: false
+    properties:
+      loginUserName:
+        type: string
+      loginUserEmail:
+        type: string
+      loginUserTelephoneNr:
+        type: string
+      loginUserFax:
+        type: string
+      loginUserMobileNr:
+        type: string
+      loginUserSignPrefix:
+        type: string
+      secondUndersignerName:
+        type: string
+      secondUndersignerEmail:
+        type: string
+      secondUndersignerTelephoneNr:
+        type: string
+      secondUndersignerFax:
+        type: string
+      secondUndersignerMobileNr:
+        type: string
+      secondUndersignerSignPrefix:
+        type: string
+      salesPersonName1:
+        type: string
+      salesPersonName2:
+        type: string
+      salesPersonSalutation:
+        type: string
+      salesPersonFunction:
+        type: string
+      salesPersonTitle:
+        type: string
+      salesPersonTelephoneNr:
+        type: string
+  subOfferResponse:
+    type: object
+    description: Wrapper object to hold the value of subOfferResponse data.
+    required:
+      - dlOfferId
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      dlOfferId:
+        type: string
+      externalOfferID:
+        type: string
+      dlSubOfferIDData:
+        type: array
+        items:
+          $ref: '#/definitions/dlSubOfferIDDataObject'
+  dlSubOfferIDDataObject:
+    type: object
+    description: asset data
+    properties:
+      chasisNumber:
+        type: string
+      subOfferId:
+        type: string
+  cancelOfferResponse:
+    type: object
+    description: Wrapper object to hold the value of cancelOfferResponse data.
+    required:
+      - externalOfferId
+      - dlOfferId
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      externalOfferId:
+        type: string
+      dlOfferId:
+        type: string
+      status:
+        type: string
+  printDataTotalOffer:
+    type: object
+    description: |-
+      All the amounts sent in this object is for complete Object . All amounts must be multiplied by no of assets.
+    additionalProperties: false
+    properties:
+      financeRateSumNetOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.financeRateSumNet * no of assets
+      financeRateSumNetNoBallonRateOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.financeRateSumNetNoBallonRateOffer * no of assets
+      ballonRateOffer:
+        type: number
+        format: double
+        description: |-
+          Ballon Rate
+          must be calculated as
+          printData.ballonRate * no of assets
+      singleTimePaymentSumNetOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.singleTimePaymentSumNet * no of assets
+      singleTimePaymentSumVatOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.singleTimePaymentSumVat * no of assets
+      chargeFeeNetOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.chargeFeeNet * no of assets
+      monthlyFinanceRateNetOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.monthlyFinanceRateNet * no of assets
+      monthlyFinanceRateVatOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.monthlyFinanceRateVat * no of assets
+      monthlyServiceRateNetOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.monthlyServiceRateNet * no of assets
+      monthlyServiceRateVatOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.monthlyServiceRateVat* no of assets
+      serviceGapCoverMonthlyRateNetOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.serviceGapCoverMonthlyRateNet * no of assets
+      serviceGapCoverMonthlyRateVATOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.serviceGapCoverMonthlyRateVAT* no of assets
+      monthlyRateVatTotalOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.monthlyRateVatTotal * no of assets
+      monthlyRateNetTotalOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.monthlyRateNetTotal * no of assets
+      monthlyRateGrossOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.monthlyRateGross * no of assets
+      customerInvoiceSumValue1Offer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.customerInvoiceSumValue1 * no of assets
+      customerInvoiceSumValue2Offer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.customerInvoiceSumValue2 * no of assets
+      customerInvoiceSumValue3Offer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.customerInvoiceSumValue3 * no of assets
+      customerInvoiceSumValue4Offer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.customerInvoiceSumValue4 * no of assets
+      customerInvoiceSumValue5Offer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.customerInvoiceSumValue5 * no of assets
+      customerInvoiceSumValue6Offer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.customerInvoiceSumValue6 * no of assets
+      customerInvoiceSumValue7Offer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.customerInvoiceSumValue7 * no of assets
+      serviceVatTotalOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.serviceVatTotal * no of assets
+      serviceVatGrossOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.serviceVatGross* no of assets
+      chargeFeeVATOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.chargeFeeVAT* no of assets
+      totalDownPaymentVatOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.totalDownPaymentVatOffer* no of assets
+      totalDownPaymentGrossOffer:
+        type: number
+        format: double
+        description: |-
+          must be calculated as
+          printData.totalDownPaymentGross* no of assets
+      totalAcquistionValueVAT:
+        type: number
+        format: double
+        description: |-
+      totalAcquistionValueGross:
+        type: number
+        format: double
+        description: |-
+  GenericServiceResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+  GenericServiceRequest:
+    description: Wrapper object to hold the request.
+    required: [contractNumber, partnerNumber, companyNumber, serviceTopic, inquirer]
+    type: object
+    properties:
+      countryCode:
+        type: string
+        minLength: 1
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      partnerNumber:
+        type: string
+      companyNumber:
+        type: string
+      offerId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      baseOfferId:
+        type: string
+      serviceTopic:
+        type: string
+        enum:
+          - GENERAL REQUEST
+          - PAYMENT REQUESTS
+          - BANK ACCOUNT CHANGE
+          - LEGITIMATION UPDATE
+          - NAME CHANGE
+          - ADDRESS CHANGE
+          - SECURITY CERTIFICATE SUBMISSION
+          - LEGAL FORM OR LESSEE CHANGE CHECK
+          - SERVICE COMPONENTS CHANGE
+          - LEGAL FORM OR LESSEE CHANGE
+          - VALUE OF TERMINATION REQUEST
+          - CUSTOMER PURCHASE OFFER REQUEST
+          - THIRD PARTY PURCHASE OFFER REQUEST
+          - OUTSOURCING ZLB2 SUBMISSION
+          - THIRD PARTY PURCHASE PROCESSING
+          - CUSTOMER PURCHASE PROCESSING
+          - CTS PURCHASE PROCESSING
+          - CUSTOMER INVOICE PROCESSING
+          - CTS RETURN OF OBJECT
+          - CANCELLATION CONFIRMATION
+          - GAP COVER EXECUTION
+          - THEFT TOTAL DAMAGE REPORT
+          - DAMAGE REPORT
+          - SHORT TERM EXTENSION
+      serviceInput:
+        type: string
+        minLength: 1
+        maxLength: 2100
+      additionalContractNumbers:
+        type: array
+        items:
+          additionalProperties: false
+          description: value of contract numbers
+          properties:
+            value:
+              type: string
+      chargeFee:
+        type: number
+        format: double
+      inquirer:
+        $ref: '#/definitions/GenericServiceRequestUserData'
+      documents:
+        $ref: '#/definitions/DocumentsArray'
+  ServiceRequestDocument:
+    description: Wrapper object to hold the request.
+    required: [contractNumber, partnerNumber, companyNumber, serviceTopic, inquirer]
+    type: object
+    properties:
+      countryCode:
+        type: string
+        minLength: 1
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      partnerNumber:
+        type: string
+      companyNumber:
+        type: string
+      offerId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      serviceTopic:
+        type: string
+        enum:
+          - GENERAL REQUEST
+          - PAYMENT REQUESTS
+          - BANK ACCOUNT CHANGE
+          - LEGITIMATION UPDATE
+          - NAME CHANGE
+          - ADDRESS CHANGE
+          - SECURITY CERTIFICATE SUBMISSION
+          - LEGAL FORM OR LESSEE CHANGE CHECK
+          - SERVICE COMPONENTS CHANGE
+          - LEGAL FORM OR LESSEE CHANGE
+          - VALUE OF TERMINATION REQUEST
+          - CUSTOMER PURCHASE OFFER REQUEST
+          - THIRD PARTY PURCHASE OFFER REQUEST
+          - OUTSOURCING ZLB2 SUBMISSION
+          - THIRD PARTY PURCHASE PROCESSING
+          - CUSTOMER PURCHASE PROCESSING
+          - CTS PURCHASE PROCESSING
+          - CUSTOMER INVOICE PROCESSING
+          - CTS RETURN OF OBJECT
+          - CANCELLATION CONFIRMATION
+          - GAP COVER EXECUTION
+          - THEFT TOTAL DAMAGE REPORT
+          - DAMAGE REPORT
+          - SHORT TERM EXTENSION
+      serviceInput:
+        type: string
+        minLength: 1
+        maxLength: 2100
+      inquirer:
+        $ref: '#/definitions/GenericServiceRequestUserData'
+      document:
+        type: array
+        description: base64 encloded string of attached file
+        items:
+          type: string
+          format: binary
+  GenericServiceRequestUserData:
+    description: An object that holds user data
+    type: object
+    required: [id, name, email]
+    properties:
+      id:
+        type: string
+        minLength: 1
+        maxLength: 10
+      name:
+        type: string
+        minLength: 1
+        maxLength: 160
+      salutation:
+        type: string
+        minLength: 1
+        maxLength: 100
+      title:
+        type: string
+        minLength: 1
+        maxLength: 100
+      telephoneNr:
+        type: string
+        minLength: 1
+        maxLength: 100
+      email:
+        type: string
+        minLength: 1
+        maxLength: 160
+  DocumentsArray:
+    type: array
+    items:
+      $ref: '#/definitions/Documents'
+  Documents:
+    description: An object that holds user data
+    type: object
+    properties:
+      name:
+        type: string
+        description: name of the attached file
+      contractIdentifier:
+        type: string
+      bytes:
+        type: string
+        description: base64 encoded value of attached filename of the attached file
+  UpdateContractStatusResponse:
+    type: object
+    additionalProperties: false
+    required:
+      - externalOfferId
+      - externalContractNumber
+      - status
+    properties:
+      externalOfferId:
+        type: string
+        minLength: 1
+      externalContractNumber:
+        type: string
+        minLength: 1
+      status:
+        type: string
+        minLength: 1
+  UpdateContract:
+    type: object
+    additionalProperties: false
+    required:
+      - externalOfferId
+      - financialPartner
+      - countryCode
+      - externalContractNumber
+    properties:
+      externalOfferId:
+        type: string
+        description: id of offer in partner system
+        minLength: 1
+      financialPartner:
+        type: string
+        minLength: 1
+      countryCode:
+        type: string
+        minLength: 1
+      externalContractNumber:
+        type: string
+        description: contract number of parter system
+        minLength: 1
+      contractStatus:
+        type: string
+        description: Status of Contract
+      partnerNumber:
+        type: string
+        description: partner number of our system (SCB number)
+      dlCompanyNumber:
+        type: string
+        description: company number of offer from partner system
+  terminalPaymentsArray:
+    type: array
+    items:
+      $ref: '#/definitions/terminalPayments'
+  terminalPayments:
+    type: object
+    properties:
+      terminalPaymentMonth:
+        type: integer
+        format: int64
+        description: This is the Early out Month for the contract
+      terminalPaymentAmount:
+        type: number
+        format: double
+        description: This is the Early out amount for the corresponding Month
+      terminalPaymentPercentage:
+        type: number
+        format: double
+        description: This is the Early out %for the corresponding amount.  This is calculated as (terminalPaymentAmount / financingdata.acquistionValue ) *100
+  updatePortfolio:
+    type: object
+    additionalProperties: false
+    required:
+      - externalTicketNo
+      - newStatus
+      - countryCode
+      - financialPartner
+    properties:
+      externalTicketNo:
+        type: string
+        minLength: 1
+      newStatus:
+        type: string
+        description: status of the ticket
+        minLength: 1
+      countryCode:
+        type: string
+        description: Country Code
+        minLength: 1
+      financialPartner:
+        type: string
+        description: 'Name of the partner, like dli, dln'
+        minLength: 1
+  updatePortfolioStatusResponse:
+    type: object
+    additionalProperties: false
+    properties:
+      status:
+        type: string
+      externalTicketNo:
+        type: string
+      newStatus:
+        type: string
+  VehicleChangeRequest:
+    description: Wrapper object to hold the request.
+    required:
+      - contractNumber
+      - partnerNumber
+      - companyNumber
+      - inquirer
+      - contracts
+    type: object
+    properties:
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      partnerNumber:
+        type: string
+      companyNumber:
+        type: string
+      countryCode:
+        type: string
+        description: Country Code
+        minLength: 1
+        example: DE
+      inquirer:
+        $ref: "#/definitions/GenericServiceRequestUserData"
+      contract:
+        $ref: "#/definitions/Contract"
+  Contract:
+    description: An object that holds contract data
+    type: object
+    properties:
+      segmentNr:
+        type: number
+      subSegmentNr:
+        type: number
+      assetOld:
+        $ref: "#/definitions/Asset"
+      assetNew:
+        $ref: "#/definitions/Asset"
+  Asset:
+    description: An object that holds asset data
+    type: object
+    properties:
+      fahrgestellNummer:
+        type: string
+      licensePlateNumber:
+        type: string
+      objectPKGNr:
+        type: number
+  VehicleChangeResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      data:
+        type: array
+        items:
+          additionalProperties: false
+          description: string value of response
+          properties:
+            value:
+              type: string
+  AddressChangeResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      portfolioServiceeId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      portfolioServiceStatus:
+        type: string
+        minLength: 0
+        maxLength: 2000
+      meta:
+        $ref: "#/definitions/metadata"
+        #error:
+        #$ref: "#/definitions/Error"
+  BankAccountChangeResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      portfolioServiceeId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      portfolioServiceStatus:
+        type: string
+        minLength: 0
+        maxLength: 2000
+      meta:
+        $ref: "#/definitions/metadata"
+        #error:
+        #$ref: "#/definitions/Error"
+  BankAccountChangeRequest:
+    description: Wrapper object to hold the request.
+    required:
+      - contractNumber
+      - countryCode
+      - partnerNumber
+      - companyNumber
+      - inquirer
+    type: object
+    properties:
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      countryCode:
+        type: string
+      additionalContractNumbers:
+        type: array
+        items:
+          type: string
+          minLength: 1
+          maxLength: 10
+      partnerNumber:
+        type: string
+        minimum: 1
+        maximum: 9999999999
+      companyNumber:
+        type: string
+        minimum: 1
+        maximum: 9999999999
+      offerId:
+        type: string
+        minimum: 1
+        maximum: 20
+      baseOfferId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      serviceInput:
+        type: string
+        minLength: 0
+        maxLength: 2100
+      chargeFee:
+        type: number
+        format: $double
+        minimum: 1
+        maximum: 9999999999
+      inquirer:
+        $ref: "#/definitions/BankUserData"
+      bankAccount:
+        $ref: "#/definitions/BankAccount"
+      documents:
+        type: array
+        items:
+          type: string
+          format: binary
+  BankAccount:
+    description: An address object to hold address information.
+    required:
+      - iban
+    type: object
+    properties:
+      iban:
+        type: string
+      sepaMandate:
+        $ref: "#/definitions/SepaMandate"
+      differentAccountHolder:
+        type: boolean
+      accountHolder:
+        $ref: "#/definitions/Partner"
+      applicableForAllContracts:
+        type: boolean
+      validFrom:
+        type: string
+  SepaMandate:
+    description: The sepa mandate information for contract/bankaccount.
+    type: object
+    properties:
+      signatureDate:
+        type: string
+      signatureCity:
+        type: string
+  BankUserData:
+    description: An object that holds user data
+    type: object
+    required:
+      - id
+      - name
+      - email
+    properties:
+      id:
+        type: string
+        minLength: 1
+        maxLength: 10
+      name:
+        type: string
+        minLength: 1
+        maxLength: 160
+      salutation:
+        type: string
+        minLength: 1
+        maxLength: 100
+      title:
+        type: string
+        minLength: 1
+        maxLength: 100
+      telephoneNr:
+        type: string
+        minLength: 1
+        maxLength: 100
+      email:
+        type: string
+        minLength: 1
+        maxLength: 160
+  Partner:
+    description: An partner object to hold partner information.
+    required:
+      - partnerNumber
+    type: object
+    properties:
+      crefoNr:
+        type: string
+      firstName:
+        type: string
+      lastName:
+        type: string
+      legalForm:
+        type: string
+      titel:
+        type: string
+      salutation:
+        type: string
+      category:
+        type: string
+      additionalInfo:
+        $ref: "#/definitions/AdditionalInfo"
+      communicationData:
+        type: array
+        items:
+          $ref: "#/definitions/Communication"
+      address:
+        $ref: "#/definitions/BankAddress"
+  BankAddress:
+    description: An address object to hold address information.
+    required:
+      - street
+      - streetNo
+      - zipCode
+      - city
+      - countryCode
+    type: object
+    properties:
+      street:
+        type: string
+      streetNo:
+        type: string
+      zipCode:
+        type: string
+      city:
+        type: string
+      countryCode:
+        pattern: ^[a-z]{2}$
+        type: string
+  Communication:
+    description: An object that holds communication data
+    type: object
+    properties:
+      faxNr:
+        type: string
+      telephoneNr:
+        type: string
+      mobileNr:
+        type: string
+      emailId:
+        type: string
+  AdditionalInfo:
+    description: An object that holds user data
+    type: object
+    properties:
+      tradeRegisterNr:
+        type: string
+      tradeRegisterCity:
+        type: string
+      salesTaxNr:
+        type: string
+      taxNr:
+        type: string
+  AddressChangeRequest:
+    description: Wrapper object to hold the request.
+    required:
+      - contractNumber
+      - countryCode
+      - partnerNumber
+      - companyNumber
+      - inquirer
+    type: object
+    properties:
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      countryCode:
+        type: string
+      additionalContractNumbers:
+        type: array
+        items:
+          type: string
+          minLength: 1
+          maxLength: 10
+      partnerNumber:
+        type: string
+      companyNumber:
+        type: string
+      offerId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      baseOfferId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      serviceInput:
+        type: string
+        minLength: 0
+        maxLength: 2100
+      chargeFee:
+        type: number
+        format: $double
+        minimum: 1
+        maximum: 9999999999
+      inquirer:
+        $ref: '#/definitions/AddressUserData'
+      addressOld:
+        $ref: '#/definitions/AddressChangeRequestType'
+      addressNew:
+        $ref: '#/definitions/AddressChangeRequestType'
+      documents:
+        type: array
+        items:
+          type: string
+          format: binary
+  AddressChangeRequestType:
+    description: An address object to hold address information.
+    required:
+      - street
+      - streetNo
+      - zipCode
+      - city
+      - countryCode
+    type: object
+    properties:
+      street:
+        type: string
+      streetNo:
+        type: string
+      zipCode:
+        type: string
+      city:
+        type: string
+      countryCode:
+        pattern: '^[a-z]{2}$'
+        type: string
+      validFrom:
+        type: string
+  AddressUserData:
+    description: An object that holds user data
+    type: object
+    required:
+      - id
+      - name
+      - email
+    properties:
+      id:
+        type: string
+        minLength: 1
+        maxLength: 10
+      name:
+        type: string
+        minLength: 1
+        maxLength: 160
+      salutation:
+        type: string
+        minLength: 1
+        maxLength: 100
+      title:
+        type: string
+        minLength: 1
+        maxLength: 100
+      telephoneNr:
+        type: string
+        minLength: 1
+        maxLength: 100
+      email:
+        type: string
+        minLength: 1
+        maxLength: 160
+  #Scheme for SaleOffer (https://jira.deutsche-leasing.com/jira/browse/RED-904)
+  SaleOfferResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      pdfByteStream:
+        type: string
+        description: PDF byte stream data base 64 format
+      meta:
+        $ref: "#/definitions/SaleOfferMetaData"
+  SaleOfferRequest:
+    description: Wrapper object to hold the request.
+    required:
+      - contractNumber
+      - partnerNumber
+      - companyNumber
+      - inquirer
+      - countryCode
+    type: object
+    properties:
+      countryCode:
+        type: string
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      partnerNumber:
+        type: string
+      companyNumber:
+        type: string
+      inquirer:
+        $ref: "#/definitions/SaleOfferUserData"
+      contract:
+        $ref: "#/definitions/SaleOfferContract"
+  SaleOfferContract:
+    description: An object that holds contract data
+    type: object
+    required:
+      - segmentNr
+      - subSegmentNr
+      - terminationtMonthYear
+      - saleOfferToCustomer
+    properties:
+      segmentNr:
+        type: number
+      subSegmentNr:
+        type: number
+      terminationtMonthYear:
+        type: string
+        example: 09/2021
+      saleOfferToCustomer:
+        type: string
+        example:
+          - Ja
+          - Nein
+      terminationReason:
+        type: string
+      thirdParty:
+        $ref: "#/definitions/SaleOfferPartner"
+  SaleOfferPartner:
+    description: An partner object to hold partner information.
+    required:
+      - partnerNumber
+    type: object
+    properties:
+      firstName:
+        type: string
+      lastName:
+        type: string
+      legalForm:
+        type: string
+      titel:
+        type: string
+      salutation:
+        type: string
+      additionalInfo:
+        $ref: "#/definitions/SaleOfferAdditionalInfo"
+      communicationData:
+        $ref: "#/definitions/SaleOfferCommunication"
+      addressData:
+        $ref: "#/definitions/SaleOfferAddress"
+      bankData:
+        $ref: "#/definitions/SaleOfferBank"
+  SaleOfferAdditionalInfo:
+    description: An object that holds user data
+    type: object
+    properties:
+      tradeRegisterNr:
+        type: string
+      tradeRegisterCity:
+        type: string
+      salesTaxNr:
+        type: string
+      taxNr:
+        type: string
+  SaleOfferAddress:
+    description: An address object to hold address information.
+    required:
+      - street
+      - streetNo
+      - zipCode
+      - city
+      - countryCode
+    type: object
+    properties:
+      street:
+        type: string
+      streetNo:
+        type: string
+      zipCode:
+        type: string
+      city:
+        type: string
+      countryCode:
+        pattern: ^[a-z]{2}$
+        type: string
+  SaleOfferBank:
+    description: An address object to hold bank information.
+    type: object
+    properties:
+      iban:
+        type: string
+      bic:
+        type: string
+  SaleOfferCommunication:
+    description: An object that holds communication data
+    type: object
+    properties:
+      faxNr:
+        type: string
+      telephoneNr:
+        type: string
+      mobileNr:
+        type: string
+      emailId:
+        type: string
+  SaleOfferUserData:
+    description: An object that holds user data
+    type: object
+    required:
+      - id
+      - name
+      - email
+    properties:
+      id:
+        type: string
+        minLength: 1
+        maxLength: 10
+      name:
+        type: string
+        minLength: 1
+        maxLength: 160
+      salutation:
+        type: string
+        minLength: 1
+        maxLength: 100
+      title:
+        type: string
+        minLength: 1
+        maxLength: 100
+      telephoneNr:
+        type: string
+        minLength: 1
+        maxLength: 100
+      email:
+        type: string
+        minLength: 1
+        maxLength: 160
+  ErrorResponse:
+    description: An object that holds standard error information.
+    type: object
+    properties:
+      http:
+        type: string
+      code:
+        type: string
+      text:
+        type: string
+      developerText:
+        description: ""
+        type: string
+    example:
+      http: 416
+      code: TRADING.0815
+      text: Missing pagination parameter
+      developer_text: Request must specify parameter limit and offset
+  SaleOfferMetaData:
+    description: An object that holds meta data information.
+    type: object
+    properties:
+      traceId:
+        description: traceId used to find out the request details.
+        type: string
+      requestReceivedDate:
+        format: date-time
+        description: date&Time (when do you received the request)
+        type: string
+      requestProcessedDate:
+        format: date-time
+        description: date&Time (when do you send the response)
+        type: string
+  ValueOfTerminationResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      meta:
+        $ref: "#/definitions/metadata"
+      terminationValues:
+        $ref: "#/definitions/TerminationValues"
+  ValueOfTerminationRequest:
+    description: Wrapper object to hold the request.
+    required:
+      - contractNumber
+      - partnerNumber
+      - companyNumber
+      - inquirer
+      - countryCode
+    type: object
+    properties:
+      countryCode:
+        type: string
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      partnerNumber:
+        type: string
+      companyNumber:
+        type: string
+      inquirer:
+        $ref: "#/definitions/UserData"
+      contract:
+        $ref: "#/definitions/ValueOfTerminationContract"
+  ValueOfTerminationErrorResponse:
+    type: object
+    properties:
+      meta:
+        $ref: "#/definitions/metadata"
+      error:
+        $ref: "#/definitions/ErrorResponse"
+  ValueOfTerminationContract:
+    description: An object that holds contract data
+    type: object
+    required:
+      - segmentNr
+      - subSegmentNr
+      - terminationtMonthYear
+    properties:
+      segmentNr:
+        type: number
+      subSegmentNr:
+        type: number
+      terminationtMonthYear:
+        type: string
+        example: 09/2021
+      terminationtype:
+        type: integer
+        enum:
+          - 1
+          - 2
+          - 3
+        description:  |-
+          - Value 1 is to get the Ablösewert for Total Loss
+          - Value 2 is to get the Ablösewert for Robbery
+          - Value 3 is to get the Ablösewert for Early / Normal Termination
+  TerminationValues:
+    description: An object that holds Termination Request Calculated values.
+    type: object
+    properties:
+      terminationDate:
+        type: string
+        format: date -dd.mm.yyyy
+        description: This is the Contract Termination Date
+      lastRentalPayment:
+        type: string
+        format: date -dd.mm.yyyy
+        description: This is the Last Rental payment date for the calculated Contract Termination date.
+      remainingDuration:
+        type: number
+        description: This is the Remaining duration of the contract calculated based on the input date.
+      nominalCharges:
+        type: number
+        format: double
+        description: This is the Nominalforderung
+      interestCredited:
+        type: number
+        format: double
+        description: This is discounted interest amount of the nominal charges (Zinsgutschrift)
+      creditVATAmount:
+        type: number
+        format: double
+        description: This is VAT Amount calculated for the field interestCredited (MwSt.-Gutschrift)
+      purchaseMarkup:
+        type: number
+        format: double
+        description: This is the Kaufzuschlag
+      redemptionNetAmount:
+        type: number
+        format: double
+        description: 'This is the calculated Termination Net Amount for the given input date. nominalCharges-interestCredited-creditVATAmmount+purchaseMarkup'
+      redemptionVATAmount:
+        type: number
+        format: double
+        description: 'This is the calculated Termination VAT Amount for the given input date. redemptionNetAmount*VAT%'
+      redemptionGrossAmount:
+        type: number
+        format: double
+        description: 'This is the calculated Termination Gross Amount for the given input date. redemptionNetAmount + redemptionVATAmount'
+      arrearGrossAmount:
+        type: number
+        format: double
+        description: This is the open Arrears Gross Amount for the given contract.
+      informationMessage:
+        type: string
+  #BPPW-92 start
+  ContractSearchParameters:
+    $ref: "#/definitions/SearchParameter"
+  SearchParameter:
+    description: An object to hold the Contract Search Parameters
+    type: object
+    properties:
+      countryCode:
+        type: string
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 20
+      #      dlCustomerNumber:
+      #        type: string
+      #        minLength: 1
+      #        maxLength: 10
+      customerName:
+        type: string
+        minLength: 1
+        maxLength: 200
+      #      dlSupplierNumber:
+      #        type: string
+      #        minLength: 1
+      #        maxLength: 10
+      supplierName:
+        type: string
+        minLength: 1
+        maxLength: 200
+      segmentNumber:
+        type: string
+        minLength: 1
+        maxLength: 5
+      subsegmentNumber:
+        type: string
+        minLength: 1
+        maxLength: 5
+      contractStartDateFrom:
+        type: string
+        format: date-time
+        example:
+          2021-01-04T00:00:00+0000
+      contractStartDateTo:
+        type: string
+        format: date-time
+        example:
+          2021-01-04T00:00:00+0000
+      contractEndDateFrom:
+        type: string
+        format: date-time
+        example:
+          2021-01-04T00:00:00+0000
+      contractEndDateTo:
+        type: string
+        format: date-time
+        example:
+          2021-01-04T00:00:00+0000
+      externalSystemReferenceNr:
+        type: string
+        description: For SCB this field is the SCB Angebots Nummber
+      dlOfferNumber:
+        type: string
+      licenseplateNumber:
+        type: string
+        description: expected format is XX-XXX-XXXX
+      seriennumber:
+        type: string
+        description: This is the Fahrgestell number of the asset
+      salesPartnerNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      dlElementaryProduct:
+        type: string
+      businessDivision:
+        type: array
+        items:
+          type: string
+          enum:
+            - BUS_SEGMENT_1_AUTO_PKW
+            - BUS_SEGMENT_2_AUTO_NFZ
+            - BUS_SEGMENT_3_EQUIP
+            - BUS_SEGMENT_4_IT
+      subsegmentStatus:
+        type: array
+        items:
+          type: string
+          description: STATUS_1_REQUEST provides the list of contracts
+          enum:
+            - STATUS_1_REQUEST
+            - STATUS_2_ACTIVE
+            - STATUS_3_END
+      companyNumber:
+        type: array
+        items:
+          type: string
+          minLength: 1
+          maxLength: 4
+      sparkasseNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      pageNo:
+        type: integer
+        description: If the request has more than 20 records then the response first will have 20 records with total number of pages. Then we can request which page number to get the remaining records
+      pageNavigation:
+        type: string
+        description: When we start the search the value must be sent as "false". Then we will receive first 20 records and total pages. When we want to get the records for the certain page for the same search request then the value must be sent as "true"
+      inquirer:
+        $ref: "#/definitions/ContractSearchUserData"
+  ContractSearchUserData:
+    description: An object that holds user data
+    type: object
+    required:
+      - id
+      - name
+      - email
+    properties:
+      id:
+        type: string
+        minLength: 1
+        maxLength: 10
+      name:
+        type: string
+        minLength: 1
+        maxLength: 160
+      salutation:
+        type: string
+        minLength: 1
+        maxLength: 100
+      title:
+        type: string
+        minLength: 1
+        maxLength: 100
+      telephoneNr:
+        type: string
+        minLength: 1
+        maxLength: 100
+      email:
+        type: string
+        minLength: 1
+        maxLength: 160
+  ResponseData:
+    description: An object that holds Response data
+    type: object
+    properties:
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 20
+      dlPartnerNumber:
+        type: string
+        minLength: 1
+        maxLength: 20
+      companyNumber:
+        type: string
+        minLength: 1
+        maxLength: 4
+      segmentNumber:
+        type: string
+        minLength: 1
+        maxLength: 5
+      subsegmentNumber:
+        type: string
+        minLength: 1
+        maxLength: 5
+      contractKey:
+        type: string
+        minLength: 1
+        maxLength: 200
+      customerName:
+        type: string
+        minLength: 1
+        maxLength: 200
+      dlElementaryProduct:
+        type: string
+        minLength: 1
+        maxLength: 20
+      contractDuration:
+        type: integer
+      contractStartDate:
+        type: string
+        format: date-time
+      contractEndDate:
+        type: string
+        format: date-time
+      contractStatus:
+        type: string
+      dlOfferNumber:
+        type: string
+      externalSystemReferenceNr:
+        type: string
+      contactAcquisitionValue:
+        type: number
+        format: Double value
+        description: This is the Anschaffungswert of the contract.
+      residualValue:
+        type: number
+        format: Double Value
+        description: This is the Restwert of the contract
+      licensplateNumber:
+        type: string
+        description: This is the KFZ-Kennezichen Nummer
+      seriennumber:
+        type: string
+        description: This is the Fahrgestellnummer
+      contractTerminationDate:
+        type: string
+        format: Date -Time
+      paymentStopDate:
+        type: string
+        format: Date- time
+        description: This is the Stop Rental date
+      downPaymentPaidToSupplier:
+        type: string
+        description: This field informs whether the down payment is paid by customer upfront to supplier or not
+      rentalsVATAmountPaidToSupplier:
+        type: string
+        description: This field informs whether the MwSt for Lease Rentals is paid by customer upfront to supplier
+      contractActivationDate:
+        type: string
+        description: This field informs when the contract is activated.
+      supplierName:
+        type: string
+      dlSupplierPartnerNr:
+        type: string
+      remainingDuration:
+        type: integer
+        description: This field provides the Rest Laufzeit of the contract from the time service is invoked
+      hirepurchaseContractType:
+        type: string
+        description: This field indicates whether the Hire Purchase contract is SLB / SMB.
+      totalPages:
+        type: integer
+        description: This will have the total no of pages to indicate how many records found for the search criteria. Each page will have 20 records
+  ContractSearchResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      contractSearchResponse:
+        type: array
+        items:
+          $ref: "#/definitions/ResponseData"
+      meta:
+        $ref: "#/definitions/metadata"
+  #BPPW-92 end
+  #BPPW-9 start
+  PaymentStopRequest:
+    description: Wrapper object to hold the request.
+    required:
+      - contractNumber
+      - partnerNumber
+      - companyNumber
+      - inquirer
+      - countryCode
+    type: object
+    properties:
+      countryCode:
+        type: string
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      partnerNumber:
+        type: string
+      companyNumber:
+        type: string
+      inquirer:
+        $ref: "#/definitions/UserData"
+      contract:
+        $ref: "#/definitions/PaymentStopRequestContract"
+  PaymentStopRequestContract:
+    description: An object that holds contract data
+    type: object
+    required:
+      - segmentNr
+      - subSegmentNr
+      - stopPaymentMonthYear
+    properties:
+      segmentNr:
+        type: number
+      subSegmentNr:
+        type: number
+      applicableForServiceComponents:
+        type: string
+        example:
+          - Yes
+          - No
+      stopPaymentMonthYear:
+        type: string
+        example: 09/2021
+  UserData:
+    description: An object that holds user data
+    type: object
+    required:
+      - id
+      - name
+      - email
+    properties:
+      id:
+        type: string
+        minLength: 1
+        maxLength: 10
+      name:
+        type: string
+        minLength: 1
+        maxLength: 160
+      salutation:
+        type: string
+        minLength: 1
+        maxLength: 100
+      title:
+        type: string
+        minLength: 1
+        maxLength: 100
+      telephoneNr:
+        type: string
+        minLength: 1
+        maxLength: 100
+      email:
+        type: string
+        minLength: 1
+        maxLength: 160
+  #TODO: fix duplicates(extract generic name)
+  PaymentStopResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      meta:
+        $ref: "#/definitions/metadata"
+  #BPPW-9 end
+  # /api/v1/serviceRequest response code 200 start
+  ServiceRequestOkResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+      * portfolioServiceeId
+      * portfolioServiceStatus
+    type: object
+    properties:
+      portfolioServiceeId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      portfolioServiceStatus:
+        type: string
+        minLength: 0
+        maxLength: 2000
+      meta:
+        $ref: "#/definitions/metadata"
+  # /api/v1/serviceRequest response code 200 end
+  #BPP_221 /api/v1/serviceRequest/cases/customerInvoice:
+  CustomerInvoiceServiceResponse:
+    description: |-
+      Response containing the standard response fields:
+      * meta: a meta object that contains non-standard meta-information
+    type: object
+    properties:
+      portfolioServiceeId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      portfolioServiceStatus:
+        type: string
+        minLength: 0
+        maxLength: 2000
+      meta:
+        $ref: "#/definitions/metadata"
+      error:
+        $ref: "#/definitions/Error"
+  CustomerInvoiceServiceRequest:
+    description: Wrapper object to hold the request.
+    required:
+      - contractNumber
+      - partnerNumber
+      - companyNumber
+      - invoiceTopic
+      - inquirer
+      - countryCode
+    type: object
+    properties:
+      countryCode:
+        type: string
+        minLength: 1
+      contractNumber:
+        type: string
+        minLength: 1
+        maxLength: 10
+      partnerNumber:
+        type: number
+        minimum: 1
+        maximum: 9999999999
+      companyNumber:
+        type: number
+        minimum: 1
+        maximum: 9999999999
+      offerId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      baseOfferId:
+        type: string
+        minLength: 0
+        maxLength: 20
+      datum:
+        type: string
+      betrag:
+        type: number
+      invoiceTopic:
+        type: string
+        enum:
+          - Earlyout
+          - Mindererlös Beendigung
+          - Rüge nach Objektrückgabe
+          - Request for individual lists
+          - Gebhür
+          - Gutschrift
+      additionalInformation:
+        type: string
+        minLength: 1
+        maxLength: 2100
+      inquirer:
+        $ref: "#/definitions/UserData"
+      documents:
+        type: array
+        items:
+          $ref: '#/definitions/Documents'
+  #BPP_221 /api/v1/serviceRequest/cases/customerInvoice: end

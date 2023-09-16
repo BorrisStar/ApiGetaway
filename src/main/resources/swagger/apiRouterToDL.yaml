@@ -1,0 +1,356 @@
+swagger: '2.0'
+info:
+  description: |-
+    This is a draft version
+
+    Updated meta data response with received and process date & time
+
+    Updated by Manimaran Samuthirapandi
+    Date: 05-11-2019 11:15
+  version: "1.0.1"
+  title: "Router to DL Connect API's Documentation"
+  termsOfService: "http://swagger.io/terms/"
+  contact:
+    email: "msa@adorsys.de"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+
+host: "172.26.65.95:8080"
+basePath: "/DLCONNECT-RS/api/v1/identifypartner"
+tags:
+  - name: "Partner"
+    description: "Search & identify the Partner with Crefo search"
+schemes:
+  - "http"
+  - "https"
+
+# To apply oAuth authentication to the whole API
+
+# API's definition
+paths:
+  #
+  # Partner API's details
+  #
+  /partner:
+    post:
+      summary: Return the partner/partnerList as per the source of input
+      description: "(Get with body): Gets a list of company details fetched from the Crefo."
+      tags:
+        - "Partner"
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: X-Correlation-ID
+          type: string
+          description: "Random generator id from Router which can be used to track the request"
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/partnerRequest"
+          description: |-
+            The request will contain the following information about the company/customer
+            * companyName (required)
+            * crefoId
+            * countryCode (required)
+            * address (required)
+      responses:
+        200:
+          description: Request was handled correctly
+          schema:
+            $ref: "#/definitions/partnerResponse"
+        400:
+          description: Request malformed
+          schema:
+            $ref: "#/definitions/Error"
+        404:
+          description: Requested resource not found
+          schema:
+            $ref: "#/definitions/Error"
+      operationId: getPartner
+
+definitions:
+  Address:
+    description: An address object to hold address information.
+    type: object
+    properties:
+      street:
+        type: string
+      streetNo:
+        type: string
+      city:
+        type: string
+      zipCode:
+        type: string
+      countryCode:
+        type: string
+  partnerDetail:
+    type: object
+    description: 'The company details object holds the relevant crefo information for a given customer. These details are taken from DL Connect in the first step. If DL Connect has stored no details about this customer, an empty object should be returned. '
+    properties:
+      crefoId:
+        type: string
+      companyName:
+        type: string
+      legalForm:
+        type: string
+      legalFormKey:
+        type: string
+      address:
+        $ref: '#/definitions/Address'
+  metadata:
+    type: object
+    required:
+      - traceId
+      - requestReceivedDate
+      - requestProcessedDate
+    properties:
+      traceId:
+        type: string
+        description: "traceId used to find out the request details. traceId created with combination of partnerId+date and time, TBD"
+      requestReceivedDate:
+        type: string
+        format: 'date-time'
+        description: "date&Time (when do you received the request)"
+      requestProcessedDate:
+        type: string
+        format: 'date-time'
+        description: "date&Time (when do you send the response)"
+  partnerResponse:
+    type: object
+    description: |-
+      Response containing an array of partnerDetail objects and the following standard response fields:
+      * meta: a meta object that contains non-standard meta-information such as paging info
+      * data: the primary data
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      data:
+        type: array
+        items:
+          $ref: '#/definitions/partnerDetail'
+  Error:
+    type: object
+    properties:
+      meta:
+        $ref: '#/definitions/metadata'
+      errorCode:
+        type: string
+      errorMessage:
+        type: string
+    description: An object that holds standard error information.
+  partnerRequest:
+    type: object
+    description: Wrapper object to hold the request for a partnerDetail object.
+    properties:
+      companyName:
+        type: string
+      crefoId:
+        type: string
+      address:
+        $ref: '#/definitions/Address'
+    required:
+      - countryCode
+      - companyName
+      - address
+  ArchiveInfo:
+    type: "object"
+    required:
+      - "fileContentType"
+    properties:
+      enabled:
+        type: "boolean"
+      fileContentType:
+        type: "string"
+    xml:
+      name: "ArchiveInfo"
+  BarcodeRegistrationInfo:
+    type: "object"
+    properties:
+      customerNo:
+        type: "string"
+      contractNo:
+        type: "string"
+      companyNo:
+        type: "string"
+      enabled:
+        type: "boolean"
+      userId:
+        type: "string"
+      selectUserIdUsingUserAlias:
+        type: "boolean"
+    xml:
+      name: "PrinterInfo"
+  Channels:
+    type: "object"
+    required:
+      - "archive"
+      - "email"
+      - "fax"
+      - "printer"
+      - "registerEAKTEInfo"
+    properties:
+      printer:
+        $ref: "#/definitions/PrinterInfo"
+      archive:
+        $ref: "#/definitions/ArchiveInfo"
+      email:
+        $ref: "#/definitions/EmailInfo"
+      fax:
+        $ref: "#/definitions/FaxInfo"
+      registerEAKTEInfo:
+        $ref: "#/definitions/BarcodeRegistrationInfo"
+    xml:
+      name: "Channels"
+  DMSDocAttachInfo:
+    type: "object"
+    required:
+      - "attachmentIds"
+    properties:
+      attachmentIds:
+        type: "array"
+        items:
+          xml:
+            name: "attachmentIds"
+          $ref: "#/definitions/DMSDocId"
+    xml:
+      name: "DMSDocAttachInfo"
+  DMSDocId:
+    type: "object"
+    properties:
+      renderAnnotation:
+        type: "boolean"
+      docReferenceId:
+        type: "string"
+    xml:
+      name: "DMSDocId"
+  EmailInfo:
+    type: "object"
+    required:
+      - "to"
+    properties:
+      to:
+        type: "string"
+      copy:
+        type: "string"
+      bcc:
+        type: "string"
+      from:
+        type: "string"
+      subject:
+        type: "string"
+      body:
+        type: "string"
+      enabled:
+        type: "boolean"
+      selectSenderEmailUsingUserAlias:
+        type: "boolean"
+    xml:
+      name: "EmailInfo"
+  FaxInfo:
+    type: "object"
+    properties:
+      faxNumber:
+        type: "string"
+      copy:
+        type: "string"
+      bcc:
+        type: "string"
+      subject:
+        type: "string"
+      body:
+        type: "string"
+      senderEmailId:
+        type: "string"
+      enabled:
+        type: "boolean"
+      selectSenderEmailUsingUserAlias:
+        type: "boolean"
+    xml:
+      name: "FaxInfo"
+  GeneralInfo:
+    type: "object"
+    required:
+      - "company"
+      - "country"
+      - "form"
+      - "jobId"
+      - "locale"
+      - "location"
+      - "numberOfCopies"
+      - "pdfRequired"
+      - "pullAttachments"
+      - "subTag"
+    properties:
+      partnerId:
+        type: "integer"
+        description: "The identification number of the Partner from Charisma."
+      bureauId:
+        type: "string"
+        description: "The identification number of the Partner  from Credit Bureau. "
+      requestId:
+        type:  "string"
+        description: "Opportunity id from customer, has many offers (offerId, offerDetails-payload)"
+      jobId:
+        type: "string"
+      form:
+        type: "string"
+      subTag:
+        type: "string"
+      company:
+        type: "string"
+      location:
+        type: "string"
+      country:
+        type: "string"
+      locale:
+        type: "string"
+        enum:
+          - "EN"
+          - "DE"
+      pdfRequired:
+        type: "boolean"
+      fileName:
+        type: "string"
+      inlineAttachment:
+        type: "string"
+      docTypeNr:
+        type: "string"
+      userAlias:
+        type: "string"
+      numberOfCopies:
+        type: "string"
+        default: "1"
+      pullAttachments:
+        $ref: "#/definitions/DMSDocAttachInfo"
+    xml:
+      name: "GeneralInfo"
+  PrinterInfo:
+    type: "object"
+    required:
+      - "batchJobId"
+    properties:
+      printerName:
+        type: "string"
+      inputTray:
+        type: "string"
+      outputTray:
+        type: "string"
+      enabled:
+        type: "boolean"
+      batchJobId:
+        type: "string"
+      batchSeqNo:
+        type: "integer"
+        format: "int32"
+      batchEndFlag:
+        type: "boolean"
+      batchEnabled:
+        type: "boolean"
+      selectPrinterUsingUserAlias:
+        type: "boolean"
+    xml:
+      name: "PrinterInfo"

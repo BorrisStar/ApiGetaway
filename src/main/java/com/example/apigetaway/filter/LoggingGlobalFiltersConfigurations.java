@@ -12,14 +12,12 @@ public class LoggingGlobalFiltersConfigurations {
 
     @Bean
     public GlobalFilter postGlobalFilter() {
-        return (exchange, chain) -> {
-            return chain.filter(exchange)
-                    .then(Mono.fromRunnable(() -> {
-                        var response = exchange.getResponse();
-                        log.info("\nGlobal Post Filter executed. \nResponse headers: {}.\nStatus code: {}",
-                                response.getHeaders(),
-                                response.getStatusCode());
-                    }));
-        };
+        return (exchange, chain) -> chain.filter(exchange)
+                .then(Mono.fromRunnable(() -> {
+                    var response = exchange.getResponse();
+                    log.info("\nGlobal Post Filter executed. \nResponse headers: {}.\nStatus code: {}",
+                            response.getHeaders(),
+                            response.getStatusCode());
+                }));
     }
 }
